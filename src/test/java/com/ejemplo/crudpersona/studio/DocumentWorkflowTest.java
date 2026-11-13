@@ -21,6 +21,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DocumentWorkflowTest {
     @TempDir Path temp;
 
+    @Test void persistsGroupsAndTransfersTemplateAssociations() throws Exception {
+        DocumentStore source=new DocumentStore(temp.resolve("source"));StudioData sourceData=new StudioData(source.directory());
+        byte[] bytes;try(XWPFDocument doc=new XWPFDocument()){doc.createParagraph().createRun().setText("Hola {{nombre}}");bytes=DocumentEngine.bytes(doc);}
+        Template template=source.saveTemplate(new Template(0,"Carta libre",bytes,bytes));TemplateGroup group=source.saveGroup(0,"Mis plantillas");source.moveTemplate(template.id(),group.id());
+        Path packageFile=temp.resolve("config.zip");new StudioTransfer(source,sourceData).exportConfiguration(packageFile);
+        DocumentStore target=new DocumentStore(temp.resolve("target"));StudioData targetData=new StudioData(target.directory());new StudioTransfer(target,targetData).importConfiguration(packageFile,StudioTransfer.Conflict.KEEP);
+        assertThat(target.groups()).extracting(TemplateGroup::name).contains("Mis plantillas");
+        assertThat(target.groupOf(target.templates().get(0).id())).isEqualTo(target.groups().get(0).id());
+        target.deleteGroup(target.groups().get(0).id(),null);
+        assertThat(target.templates()).hasSize(1);assertThat(target.groupOf(target.templates().get(0).id())).isNull();
+    }
+
     @Test void preservesPagesHeaderFooterImageAndDocumentDefaultsAfterReopen() throws Exception {
         byte[] original;
         try(XWPFDocument doc=new XWPFDocument()){

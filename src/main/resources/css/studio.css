@@ -10,7 +10,7 @@
     -fx-background-radius: 16;
     -fx-border-color: -color-border-muted;
     -fx-border-radius: 16;
-    -fx-padding: 14 18;
+    -fx-padding: 10 14;
     -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.06), 18, 0, 0, 4);
 }
 
@@ -27,18 +27,18 @@
     -fx-background-radius: 16;
     -fx-border-color: -color-border-muted;
     -fx-border-radius: 16;
-    -fx-padding: 20 22 18 22;
+    -fx-padding: 16;
     -fx-spacing: 16;
     -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.06), 18, 0, 0, 4);
 }
 
 .side-panel {
-    -fx-min-width: 220;
+    -fx-min-width: 0;
 }
 
 .catalog-form,
 .generator-form {
-    -fx-max-width: 760;
+    -fx-max-width: infinity;
 }
 
 .side-panel > .label:first-child,
@@ -99,6 +99,12 @@
     -fx-cursor: hand;
 }
 
+.list-cell.library-associated:filled {
+    -fx-background-color: -color-accent-subtle;
+    -fx-border-color: transparent transparent transparent -color-accent-muted;
+    -fx-border-width: 0 0 0 3;
+}
+
 .doc-table {
     -fx-border-color: -color-border-default;
     -fx-padding: 2;
@@ -114,3 +120,102 @@
     -fx-background-color: -color-bg-default;
     -fx-padding: 20;
 }
+
+/* All colors remain semantic AtlantaFX Primer colors in either theme. */
+.button, .menu-button {
+    -fx-min-height: 36px;
+    -fx-padding: 8 16;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-text-fill: -color-fg-default;
+    -fx-graphic-text-gap: 7;
+    -fx-cursor: hand;
+}
+.button:hover, .menu-button:hover, .button.secondary-btn:hover {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-fg-muted;
+}
+.button:focused, .menu-button:focused {
+    -fx-border-color: -color-accent-fg;
+}
+.button.secondary-btn {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-text-fill: -color-fg-default;
+}
+.button.primary-btn {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-border-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-font-weight: bold;
+}
+.button.primary-btn:hover {
+    -fx-background-color: -color-accent-fg;
+    -fx-border-color: -color-accent-fg;
+}
+.button.primary-btn .ikonli-font-icon {
+    -fx-icon-color: -color-fg-emphasis;
+}
+.button.danger-btn {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-danger-muted;
+    -fx-text-fill: -color-danger-fg;
+}
+.button.danger-btn:hover {
+    -fx-background-color: -color-danger-subtle;
+    -fx-border-color: -color-danger-fg;
+}
+.button.danger-btn .ikonli-font-icon {
+    -fx-icon-color: -color-danger-fg;
+}
+.button:disabled { -fx-opacity: 0.5; }
+.sidebar { -fx-padding: 20 10 16 10; }
+.sidebar .nav-item {
+    -fx-padding: 9 8;
+    -fx-font-size: 12.5px;
+    -fx-graphic-text-gap: 8;
+}
+.pagina { -fx-padding: 22 24; -fx-spacing: 16; }
+.pagina-titulo { -fx-font-size: 24px; }
+.content-scroll, .content-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+.content-scroll > .scroll-bar:horizontal, .list-view .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+.list-view .list-cell { -fx-padding: 10 12; }
+.side-panel, .catalog-form, .generator-form { -fx-background-radius: 12; -fx-border-radius: 12; }
+.binding-card, .result-field {
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 8;
+    -fx-padding: 12;
+}
+.transfer-card, .preview-panel {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 12;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 12;
+    -fx-padding: 16;
+}
+.transfer-card > .label { -fx-font-weight: bold; -fx-font-size: 15px; }
+.transfer-card > .field-label { -fx-font-weight: normal; -fx-font-size: 12px; }
+.action-bar {
+    -fx-padding: 12 0 0 0;
+    -fx-alignment: CENTER_RIGHT;
+    -fx-border-color: -color-border-muted transparent transparent transparent;
+}
+.automatic-save { -fx-text-fill: -color-success-fg; }
+.editor-toolbar { -fx-padding: 8 10; -fx-background-radius: 8; -fx-border-radius: 8; }
+.editor-toolbar .button { -fx-padding: 8 10; }
+
+.generator-actions .button { -fx-font-size: 12px; -fx-padding: 8 6; }
+
+.button.lookup-button { -fx-padding: 8; }

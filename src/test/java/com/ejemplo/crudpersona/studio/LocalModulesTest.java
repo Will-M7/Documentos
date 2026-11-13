@@ -13,6 +13,30 @@ import static org.assertj.core.api.Assertions.*;
 class LocalModulesTest {
     @TempDir Path temp;
 
+    @Test void templateCatalogGroupsFiltersAndEditorSaveRemainIndependent()throws Exception{
+        Path directory=temp.resolve("catalog");DocumentStore store=new DocumentStore(directory);StudioData data=new StudioData(directory);
+        byte[] docx;try(XWPFDocument doc=new XWPFDocument()){doc.createParagraph().createRun().setText("Plantilla");docx=DocumentEngine.bytes(doc);}
+        Template first=store.saveTemplate(new Template(0,"Solicitud",docx,docx));data.recordRevision(first.id(),docx);
+        TemplateGroup solicitudes=store.saveGroup(0,"Solicitudes");
+        assertThat(store.templates()).hasSize(1);assertThat(store.groupIds(first.id())).isEmpty();assertThat(store.groups().get(0).count()).isZero();
+        for(long selected:List.of(-1L,0L,solicitudes.id()))assertThat(store.templates().stream().filter(t->StudioWindow.libraryMatches(t.name(),"")).map(Template::id).toList()).containsExactly(first.id());
+        assertThat(StudioWindow.libraryHighlighted(store.groupIds(first.id()),-1)).isFalse();
+        assertThat(StudioWindow.libraryHighlighted(store.groupIds(first.id()),0)).isFalse();
+        assertThat(StudioWindow.libraryHighlighted(store.groupIds(first.id()),solicitudes.id())).isFalse();
+        store.setTemplateGroups(first.id(),List.of(solicitudes.id()));
+        assertThat(store.groups().get(0).count()).isEqualTo(1);assertThat(store.templates().stream().map(Template::id).toList()).containsExactly(first.id());assertThat(StudioWindow.libraryHighlighted(store.groupIds(first.id()),solicitudes.id())).isTrue();
+        Template other=store.saveTemplate(new Template(0,"Carta",docx,docx));
+        assertThat(store.templates().stream().filter(t->StudioWindow.libraryMatches(t.name(),"")).map(Template::id).toList()).containsExactlyInAnyOrder(first.id(),other.id());
+        assertThat(StudioWindow.libraryHighlighted(store.groupIds(other.id()),solicitudes.id())).isFalse();
+        assertThat(store.templates().stream().filter(t->StudioWindow.libraryMatches(t.name(),"sol")).map(Template::id).toList()).containsExactly(first.id());
+        TemplateGroup frecuentes=store.saveGroup(0,"Frecuentes");store.setTemplateGroups(first.id(),List.of(solicitudes.id(),frecuentes.id()));
+        assertThat(store.templates()).hasSize(2);assertThat(store.groupIds(first.id())).containsExactlyInAnyOrder(solicitudes.id(),frecuentes.id());
+        store.saveTemplate(new Template(first.id(),"Solicitud editada",first.original(),first.edited()));assertThat(store.groupIds(first.id())).hasSize(2);
+        Template copy=store.saveTemplate(new Template(0,"Solicitud (copia)",first.original(),first.edited()));assertThat(store.groupIds(copy.id())).isEmpty();
+        store.deleteGroup(solicitudes.id(),null);assertThat(store.templates()).hasSize(3);assertThat(store.groupIds(first.id())).containsExactly(frecuentes.id());
+        DocumentStore reopened=new DocumentStore(directory);assertThat(reopened.groupIds(first.id())).containsExactly(frecuentes.id());assertThat(reopened.groupIds(copy.id())).isEmpty();assertThat(new StudioData(directory).revisionDates()).containsKey(first.id());
+    }
+
     @Test void transferBackupAndReopen()throws Exception{
         Path first=temp.resolve("first"),second=temp.resolve("second");DocumentStore a=new DocumentStore(first);StudioData extra=new StudioData(first);
         byte[] docx;try(XWPFDocument doc=new XWPFDocument()){doc.createParagraph().createRun().setText("Hola {{nombre}}");docx=DocumentEngine.bytes(doc);}
@@ -43,6 +67,28 @@ class LocalModulesTest {
         assertThat(FactilizaClient.parse("RUC","20123456789",200,ruc).data()).containsEntry("nombre_o_razon_social","EMPRESA");
         assertThatThrownBy(()->FactilizaClient.parse("DNI","12345678",200,"{\"success\":true,\"data\":{}}" )).hasMessageContaining("incompletos");
         assertThatThrownBy(()->FactilizaClient.parse("RUC","20123456789",401,"{\"success\":false,\"message\":\"Unauthorized\"}" )).hasMessageContaining("Unauthorized");
+        assertThat(FactilizaClient.parse("DNI","12345678",200,"{\"success\":true,\"data\":{\"numero\":\"12345678\",\"ubigeo\":[\"15\",\"1501\"],\"sexo\":null}}").data()).containsEntry("data.ubigeo[1]","1501").doesNotContainKey("data.sexo");
+        assertThat(FactilizaClient.parse("RUC - Representantes","20123456789",200,"{\"status\":200,\"data\":[{\"nombre\":\"Ejemplo\"}]}").data()).containsEntry("data[0].nombre","Ejemplo");
+    }
+
+    @Test void variableApiBindingsRemainIndependentAndTransferWithoutClientData()throws Exception{
+        Path first=temp.resolve("api-source"),second=temp.resolve("api-target");DocumentStore store=new DocumentStore(first);StudioData data=new StudioData(first);
+        Definition original=store.saveDefinition(new Definition(0,"nombre","Nombre","Texto","Antiguo"));
+        data.saveApiBinding(new ApiBinding(original.id(),"DNI","data.nombres"));
+        Definition copy=store.saveDefinition(new Definition(0,"nombre_copia","Nombre (copia)",original.type(),""));
+        assertThat(copy.id()).isNotEqualTo(original.id());assertThat(copy.defaultValue()).isEmpty();assertThat(data.apiBinding(copy.id())).isNull();
+        assertThat(VariableInput.initialValue("Fecha","2020-01-01")).isEqualTo(java.time.LocalDate.now().toString());
+        assertThat(VariableInput.validate("Mixto","DNI 001, A.",Locale.getDefault())).isEqualTo("DNI 001, A.");
+        assertThat(VariableInput.validate("Número decimal","-1.234,50",Locale.forLanguageTag("es-PE"))).isEqualTo("-1234.50");
+        byte[] docx;try(XWPFDocument doc=new XWPFDocument()){doc.createParagraph().createRun().setText("{{nombre}}");docx=DocumentEngine.bytes(doc);}
+        Template template=store.saveTemplate(new Template(0,"API",docx,docx));
+        assertThat(store.definitionDependencies(original.id())).contains("API");
+        assertThatThrownBy(()->store.deleteDefinition(original.id())).hasMessageContaining("API");
+        data.saveContact(new Contact(0,"Persona","Ana","","DNI","12345678","","","{}"));
+        Path packageFile=temp.resolve("api.zip");new StudioTransfer(store,data).exportConfiguration(packageFile);
+        DocumentStore target=new DocumentStore(second);StudioData imported=new StudioData(second);new StudioTransfer(target,imported).importConfiguration(packageFile,StudioTransfer.Conflict.KEEP);
+        Definition transferred=target.definitions().stream().filter(d->d.key().equals("nombre")).findFirst().orElseThrow();
+        assertThat(imported.apiBinding(transferred.id()).path()).isEqualTo("data.nombres");assertThat(imported.contacts()).isEmpty();
     }
 
     @Test void sharedDefinitionsBindToTemplatesAndSurviveTransfer()throws Exception{
@@ -79,19 +125,19 @@ class LocalModulesTest {
         for(String[] row:rows){store.saveVariable(new Variable(0,template.id(),row[3],row[3],row[2].equals("number")?(row[1].equals("Persona")?"DNI":"RUC"):"Texto corto","",false,1));bindings.add(data.saveContactBinding(new StudioData.ContactBinding(0,template.id(),row[0],row[1],row[2],row[3])));}
         Map<String,String> values=Map.of("nombre_a","Juan Pérez","dni_a","12345678","domicilio_a","Lima","nombre_b","María Ruiz","dni_b","87654321","domicilio_b","Cusco","empresa","ABC SAC","ruc","20123456789");
         Map<String,String> types=Map.of("dni_a","DNI","dni_b","DNI","ruc","RUC");
-        ContactReuse.Result first=ContactReuse.save(data,bindings,values,types,(old,next)->false);
+        ContactReuse.Result first=ContactReuse.save(data,bindings,values,types);
         assertThat(first.created()).isEqualTo(3);
-        assertThat(ContactReuse.save(data,bindings,values,types,(old,next)->false).created()).isZero();
+        assertThat(ContactReuse.save(data,bindings,values,types).created()).isZero();
         assertThat(data.contacts()).hasSize(3);
         StudioData.Contact juan=data.matchingContact("Persona","DNI","12345678");
         assertThat(ContactReuse.valuesFor(juan,bindings.stream().filter(b->b.groupKey().equals("a")).toList())).containsEntry("nombre_a","Juan Pérez").containsEntry("domicilio_a","Lima");
         Map<String,String> changed=new HashMap<>(values);changed.put("domicilio_a","Arequipa");
-        ContactReuse.save(data,bindings,changed,types,(old,next)->false);
-        assertThat(data.matchingContact("Persona","DNI","12345678").address()).isEqualTo("Lima");
-        ContactReuse.save(data,bindings,changed,types,(old,next)->true);
+        ContactReuse.save(data,bindings,changed,types);
+        assertThat(data.matchingContact("Persona","DNI","12345678").address()).isEqualTo("Arequipa");
+        ContactReuse.save(data,bindings,changed,types);
         assertThat(new StudioData(directory).matchingContact("Persona","DNI","12345678").address()).isEqualTo("Arequipa");
         Map<String,String> withoutDocument=new HashMap<>(values);withoutDocument.put("dni_a","");
-        assertThat(ContactReuse.save(data,bindings,withoutDocument,types,(old,next)->false).skipped()).isEqualTo(1);
+        assertThat(ContactReuse.save(data,bindings,withoutDocument,types).skipped()).isEqualTo(1);
         assertThat(data.contacts()).hasSize(3);
         Path config=temp.resolve("groups.zip");new StudioTransfer(store,data).exportConfiguration(config);
         Path importedDirectory=temp.resolve("groups-imported");DocumentStore imported=new DocumentStore(importedDirectory);StudioData importedData=new StudioData(importedDirectory);

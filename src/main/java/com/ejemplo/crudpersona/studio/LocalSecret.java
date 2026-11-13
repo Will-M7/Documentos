@@ -15,7 +15,8 @@ import java.util.concurrent.TimeUnit;
 public final class LocalSecret {
     private final Path secret, keyFile;
     private final boolean windows=System.getProperty("os.name","").toLowerCase().contains("win");
-    public LocalSecret(Path directory){secret=directory.resolve("factiliza.secret");keyFile=directory.resolve(".local-secret.key");}
+    public LocalSecret(Path directory){this(directory,"factiliza.secret");}
+    public LocalSecret(Path directory,String fileName){if(!fileName.matches("[a-zA-Z0-9._-]+"))throw new IllegalArgumentException("Nombre de credencial inválido.");secret=directory.resolve(fileName);keyFile=directory.resolve(".local-secret.key");}
     public boolean configured(){return Files.exists(secret);}
     public void save(String token)throws Exception{
         if(token==null||token.isBlank())throw new IllegalArgumentException("Escriba el token.");

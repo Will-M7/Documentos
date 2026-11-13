@@ -21,6 +21,7 @@ public final class DocumentStore {
                        long templateId, String fields, boolean active) {
         @Override public String toString() { return title; }
     }
+    public record TemplateGroup(long id,String name,int count){@Override public String toString(){return name+" ("+count+")";}}
 
     private final Path directory;
     private final String url;
@@ -43,6 +44,11 @@ public final class DocumentStore {
         Class.forName("org.sqlite.JDBC");
         try (Connection c = connect(); Statement s = c.createStatement()) {
             s.executeUpdate("CREATE TABLE IF NOT EXISTS template (id INTEGER PRIMARY KEY, name TEXT NOT NULL, original BLOB NOT NULL, edited BLOB NOT NULL)");
+            s.executeUpdate("CREATE TABLE IF NOT EXISTS template_group (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE)");
+            s.executeUpdate("CREATE TABLE IF NOT EXISTS template_group_member (template_id INTEGER PRIMARY KEY REFERENCES template(id) ON DELETE CASCADE, group_id INTEGER NOT NULL REFERENCES template_group(id) ON DELETE CASCADE)");
+            s.executeUpdate("CREATE TABLE IF NOT EXISTS template_group_link (template_id INTEGER NOT NULL REFERENCES template(id) ON DELETE CASCADE, group_id INTEGER NOT NULL REFERENCES template_group(id) ON DELETE CASCADE, PRIMARY KEY(template_id,group_id))");
+            s.executeUpdate("INSERT OR IGNORE INTO template_group_link(template_id,group_id) SELECT template_id,group_id FROM template_group_member");
+            s.executeUpdate("DELETE FROM template_group_member");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS variable (id INTEGER PRIMARY KEY, template_id INTEGER NOT NULL REFERENCES template(id) ON DELETE CASCADE, key TEXT NOT NULL, label TEXT NOT NULL, type TEXT NOT NULL, default_value TEXT, required INTEGER NOT NULL, position INTEGER NOT NULL, UNIQUE(template_id,key))");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS variable_definition (id INTEGER PRIMARY KEY, key TEXT NOT NULL, label TEXT NOT NULL, type TEXT NOT NULL, default_value TEXT)");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS kind (id INTEGER PRIMARY KEY, title TEXT NOT NULL, category TEXT, description TEXT, template_id INTEGER NOT NULL REFERENCES template(id), fields TEXT NOT NULL DEFAULT '', active INTEGER NOT NULL)");
@@ -133,11 +139,13 @@ public final class DocumentStore {
         }
     }
     public List<String> definitionDependencies(long id)throws SQLException {
-        List<String> out=new ArrayList<>();
+        Set<String> out=new LinkedHashSet<>();
         try(Connection c=connect();PreparedStatement s=c.prepareStatement("SELECT t.name FROM variable v JOIN template t ON t.id=v.template_id WHERE v.definition_id=? ORDER BY t.name")){
             s.setLong(1,id);try(ResultSet r=s.executeQuery()){while(r.next())out.add(r.getString(1));}
         }
-        return out;
+        String key=null;try(Connection c=connect();PreparedStatement s=c.prepareStatement("SELECT key FROM variable_definition WHERE id=?")){s.setLong(1,id);try(ResultSet r=s.executeQuery()){if(r.next())key=r.getString(1);}}
+        if(key!=null)for(Template template:templates())try(var document=DocumentEngine.open(template.edited())){if(DocumentEngine.markers(document).contains(key))out.add(template.name());}catch(Exception e){throw new SQLException("No se pudieron comprobar las plantillas antes de eliminar la variable.",e);}
+        return new ArrayList<>(out);
     }
     public void deleteDefinition(long id)throws SQLException {
         List<String> uses=definitionDependencies(id);if(!uses.isEmpty())throw new IllegalStateException("Variable utilizada en: "+String.join(", ",uses));
@@ -161,6 +169,25 @@ public final class DocumentStore {
         }
         return result;
     }
+    public List<TemplateGroup> groups()throws SQLException{
+        List<TemplateGroup> out=new ArrayList<>();try(Connection c=connect();Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT g.id,g.name,COUNT(m.template_id) AS members FROM template_group g LEFT JOIN template_group_link m ON m.group_id=g.id GROUP BY g.id ORDER BY g.name")){while(r.next())out.add(new TemplateGroup(r.getLong(1),r.getString(2),r.getInt(3)));}return out;
+    }
+    public TemplateGroup saveGroup(long id,String name)throws SQLException{
+        String value=name==null?"":name.trim();if(value.isBlank())throw new IllegalArgumentException("Escriba el nombre del grupo.");
+        try(Connection c=connect()){
+            if(id==0){try(PreparedStatement s=c.prepareStatement("INSERT INTO template_group(name) VALUES(?)",Statement.RETURN_GENERATED_KEYS)){s.setString(1,value);s.executeUpdate();try(ResultSet r=s.getGeneratedKeys()){return new TemplateGroup(r.next()?r.getLong(1):0,value,0);}}}
+            try(PreparedStatement s=c.prepareStatement("UPDATE template_group SET name=? WHERE id=?")){s.setString(1,value);s.setLong(2,id);if(s.executeUpdate()!=1)throw new IllegalArgumentException("Grupo inexistente.");}
+        }return groups().stream().filter(g->g.id()==id).findFirst().orElseThrow();
+    }
+    public List<Long> groupIds(long templateId)throws SQLException{List<Long> ids=new ArrayList<>();try(Connection c=connect();PreparedStatement s=c.prepareStatement("SELECT group_id FROM template_group_link WHERE template_id=? ORDER BY group_id")){s.setLong(1,templateId);try(ResultSet r=s.executeQuery()){while(r.next())ids.add(r.getLong(1));}}return ids;}
+    public boolean inGroup(long templateId,long groupId)throws SQLException{return groupIds(templateId).contains(groupId);}
+    public Long groupOf(long templateId)throws SQLException{List<Long> ids=groupIds(templateId);return ids.isEmpty()?null:ids.get(0);}
+    public void setTemplateGroups(long templateId,Collection<Long> ids)throws SQLException{try(Connection c=connect()){c.setAutoCommit(false);try(PreparedStatement s=c.prepareStatement("DELETE FROM template_group_link WHERE template_id=?")){s.setLong(1,templateId);s.executeUpdate();}for(Long id:new LinkedHashSet<>(ids))try(PreparedStatement s=c.prepareStatement("INSERT INTO template_group_link(template_id,group_id) VALUES(?,?)")){s.setLong(1,templateId);s.setLong(2,id);s.executeUpdate();}c.commit();}}
+    public void moveTemplate(long templateId,Long groupId)throws SQLException{setTemplateGroups(templateId,groupId==null?List.of():List.of(groupId));}
+    public void deleteGroup(long id,Long destination)throws SQLException{if(destination!=null&&destination==id)throw new IllegalArgumentException("Seleccione otro grupo.");try(Connection c=connect()){c.setAutoCommit(false);if(destination!=null)try(PreparedStatement s=c.prepareStatement("INSERT OR IGNORE INTO template_group_link(template_id,group_id) SELECT template_id,? FROM template_group_link WHERE group_id=?")){s.setLong(1,destination);s.setLong(2,id);s.executeUpdate();}try(PreparedStatement s=c.prepareStatement("DELETE FROM template_group_link WHERE group_id=?")){s.setLong(1,id);s.executeUpdate();}try(PreparedStatement s=c.prepareStatement("DELETE FROM template_group_member WHERE group_id=?")){s.setLong(1,id);s.executeUpdate();}try(PreparedStatement s=c.prepareStatement("DELETE FROM template_group WHERE id=?")){s.setLong(1,id);s.executeUpdate();}c.commit();}}
+    public List<String> templateDependencies(long id)throws SQLException{List<String> out=new ArrayList<>();try(Connection c=connect();PreparedStatement s=c.prepareStatement("SELECT title FROM kind WHERE template_id=?")){s.setLong(1,id);try(ResultSet r=s.executeQuery()){while(r.next())out.add(r.getString(1));}}return out;}
+    public void deleteTemplate(long id)throws SQLException{List<String> uses=templateDependencies(id);if(!uses.isEmpty())throw new IllegalStateException("Plantilla utilizada en: "+String.join(", ",uses));try(Connection c=connect();PreparedStatement s=c.prepareStatement("DELETE FROM template WHERE id=?")){s.setLong(1,id);s.executeUpdate();}}
+    public void deleteTemplateWithLegacyKinds(long id)throws SQLException{try(Connection c=connect()){c.setAutoCommit(false);try(PreparedStatement s=c.prepareStatement("DELETE FROM kind WHERE template_id=?")){s.setLong(1,id);s.executeUpdate();}try(PreparedStatement s=c.prepareStatement("DELETE FROM template WHERE id=?")){s.setLong(1,id);s.executeUpdate();}c.commit();}}
 
     public Template saveTemplate(Template t) throws SQLException {
         if (t.id() == 0) {
