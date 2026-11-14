@@ -21,7 +21,7 @@ import {
   type TipoDocumento,
 } from '../../clientes/api'
 import type { Participante } from '../../plantillas/api'
-import { clientePorDocumento } from '../api'
+import { buscarPorDocumento } from '../api'
 import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
 
 const DOCUMENTOS_PERSONA: TipoDocumento[] = ['DNI', 'CE', 'PASAPORTE', 'RUC']
@@ -36,7 +36,7 @@ export function ParticipanteCampos({
   valor: DatosCliente
   onCambiar: (datos: DatosCliente) => void
 }) {
-  const [aviso, setAviso] = useState<{ tipo: 'success' | 'info'; texto: string } | null>(null)
+  const [aviso, setAviso] = useState<{ tipo: 'success' | 'info'; texto: string; local: boolean } | null>(null)
   const usa = (campo: string) => participante.campos.some((c) => c.clave === campo)
   const tipoFijo: TipoCliente | null =
     participante.tipoCliente === 'CUALQUIERA' ? null : participante.tipoCliente
@@ -44,19 +44,16 @@ export function ParticipanteCampos({
   const cambiar = (cambios: Partial<DatosCliente>) => onCambiar({ ...valor, ...cambios })
 
   const buscar = useMutation({
-    mutationFn: () => clientePorDocumento(valor.tipoDocumento, valor.numeroDocumento),
-    onSuccess: (cliente) => {
+    mutationFn: (actualizar: boolean) =>
+      buscarPorDocumento(valor.tipoDocumento, valor.numeroDocumento, actualizar),
+    onSuccess: ({ cliente, mensaje, origen }) => {
       if (cliente) {
-        onCambiar({ ...PARTICIPANTE_VACIO, ...sinNulos(cliente) })
-        setAviso({ tipo: 'success', texto: `Datos cargados desde Clientes: ${cliente.nombreCompleto}` })
-      } else {
-        setAviso({
-          tipo: 'info',
-          texto: 'No está registrado. Complete los datos: se guardará en Clientes al generar.',
-        })
+        onCambiar({ ...PARTICIPANTE_VACIO, ...sinNulos(cliente) } as DatosCliente)
       }
+      setAviso({ tipo: cliente ? 'success' : 'info', texto: mensaje, local: origen === 'CLIENTES' })
     },
   })
+  const puedeActualizar = aviso?.local && (valor.tipoDocumento === 'DNI' || valor.tipoDocumento === 'RUC')
 
   return (
     <Card variant="outlined">
@@ -110,7 +107,7 @@ export function ParticipanteCampos({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
-                    buscar.mutate()
+                    buscar.mutate(false)
                   }
                 }}
               />
@@ -119,7 +116,7 @@ export function ParticipanteCampos({
                 startIcon={<Search />}
                 loading={buscar.isPending}
                 disabled={!valor.numeroDocumento.trim()}
-                onClick={() => buscar.mutate()}
+                onClick={() => buscar.mutate(false)}
               >
                 Buscar
               </Button>
@@ -127,7 +124,17 @@ export function ParticipanteCampos({
           </Grid>
           {(aviso || buscar.error) && (
             <Grid size={12}>
-              <Alert severity={buscar.error ? 'error' : aviso!.tipo} onClose={() => setAviso(null)}>
+              <Alert
+                severity={buscar.error ? 'error' : aviso!.tipo}
+                onClose={() => setAviso(null)}
+                action={
+                  puedeActualizar && !buscar.error ? (
+                    <Button color="inherit" size="small" onClick={() => buscar.mutate(true)}>
+                      Consultar de nuevo
+                    </Button>
+                  ) : undefined
+                }
+              >
                 {buscar.error ? buscar.error.message : aviso!.texto}
               </Alert>
             </Grid>

@@ -50,7 +50,13 @@ describe('Nuevo documento', () => {
     simularApi({
       'GET /plantillas': () => respuestaJson(200, [{ ...plantilla, actualizadoEn: '2026-11-14T10:00:00Z' }]),
       'GET /plantillas/p1': () => respuestaJson(200, plantilla),
-      'GET /clientes/documento/DNI/41234567': () => respuestaJson(200, ana),
+      'POST /consultas/DNI/41234567': () =>
+        respuestaJson(200, {
+          encontrado: true,
+          origen: 'CLIENTES',
+          cliente: ana,
+          mensaje: 'Datos cargados desde Clientes (sin costo).',
+        }),
       'GET /documentos': () => respuestaJson(200, paginaVacia),
       'POST /documentos': (_, init) => {
         pedido = JSON.parse(String(init?.body))

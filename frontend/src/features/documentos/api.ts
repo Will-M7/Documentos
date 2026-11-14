@@ -86,6 +86,41 @@ export async function clientePorDocumento(tipo: TipoDocumento, numero: string): 
   }
 }
 
+export interface ResultadoBusqueda {
+  cliente: Cliente | null
+  mensaje: string
+  /** "CLIENTES", "Factiliza", "APIsPERU" o null. */
+  origen: string | null
+}
+
+/**
+ * DNI y RUC: Clientes primero y, si no está, el proveedor configurado (lo guarda en Clientes).
+ * Otros documentos: solo Clientes.
+ */
+export async function buscarPorDocumento(
+  tipo: TipoDocumento,
+  numero: string,
+  actualizar = false,
+): Promise<ResultadoBusqueda> {
+  if (tipo === 'DNI' || tipo === 'RUC') {
+    const r = await api<{
+      encontrado: boolean
+      origen: string | null
+      cliente: Cliente | null
+      mensaje: string
+    }>(`/consultas/${tipo}/${encodeURIComponent(numero.trim())}?actualizar=${actualizar}`, { method: 'POST' })
+    return { cliente: r.cliente, mensaje: r.mensaje, origen: r.origen }
+  }
+  const cliente = await clientePorDocumento(tipo, numero)
+  return cliente
+    ? { cliente, mensaje: 'Datos cargados desde Clientes.', origen: 'CLIENTES' }
+    : {
+        cliente: null,
+        mensaje: 'No está registrado. Complete los datos: se guardará en Clientes al generar.',
+        origen: null,
+      }
+}
+
 export function obtenerCliente(id: string) {
   return api<Cliente>(`/clientes/${id}`)
 }

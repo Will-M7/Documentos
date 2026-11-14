@@ -27,6 +27,8 @@ server:
 app:
   seguridad:
     jwt-secreto: ${JWT_SECRETO}
+    # Cifra los tokens de Factiliza/APIsPERU guardados en la base. Si cambia, hay que volver a registrarlos.
+    clave-maestra: ${APP_CLAVE_MAESTRA}
     duracion-token: ${DURACION_TOKEN:8h}
   archivos:
     # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.

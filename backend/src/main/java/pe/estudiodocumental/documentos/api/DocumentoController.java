@@ -89,6 +89,16 @@ class DocumentoController {
         return Pagina.de(resultado, d -> resumen(d, nombres));
     }
 
+    /** Si se pueden generar PDF en este servidor y, si no, por qué. */
+    public record EstadoPdf(boolean disponible, String mensaje) {}
+
+    @Operation(summary = "¿Hay PDF?", description = "Indica si LibreOffice está instalado en el servidor.")
+    @GetMapping("/estado-pdf")
+    EstadoPdf estadoPdf() {
+        String aviso = documentos.avisoPdf();
+        return new EstadoPdf(aviso == null, aviso == null ? "LibreOffice instalado: se generan PDF." : aviso);
+    }
+
     @GetMapping("/{id}")
     DocumentoDetalle obtener(@PathVariable UUID id) {
         return detalle(documentos.obtener(id));
