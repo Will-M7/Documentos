@@ -24,7 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Seguridad de la API: sin sesiones; cada petición trae un token JWT firmado con HS256.
  *
- * <p>Públicos: login, documentación de la API y estado de salud. Todo lo demás requiere token.
+ * <p>Públicos: login, documentación de la API, estado de salud y los archivos de la web. Toda la API requiere token.
  */
 @Configuration
 @EnableMethodSecurity
@@ -43,8 +43,11 @@ class SeguridadConfig {
                         .permitAll()
                         .requestMatchers("/api/docs", "/api/docs/**", "/actuator/health", "/actuator/health/**")
                         .permitAll()
+                        .requestMatchers("/api/**", "/actuator/**")
+                        .authenticated()
+                        // El resto son los archivos de la web (HTML, JS, CSS), que no tienen datos
                         .anyRequest()
-                        .authenticated())
+                        .permitAll())
                 .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(convertidorRoles())))
                 .build();
     }

@@ -33,6 +33,10 @@ app:
   archivos:
     # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
     directorio: ${ARCHIVOS_DIR:./datos/archivos}
+  web:
+    # Carpeta "dist" del frontend compilado. Si se indica, el backend sirve también la web en el mismo puerto
+    # (instalación sin Docker). Vacío en desarrollo: la web la sirve Vite.
+    directorio: ${WEB_DIR:}
   admin-inicial:
     usuario: ${ADMIN_USUARIO:}
     clave: ${ADMIN_CLAVE:}
