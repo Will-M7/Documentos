@@ -20,6 +20,7 @@ frontend/dist/
 
 # --- Datos y archivos generados en ejecución ---
 /datos/
+backend/datos/
 /respaldos/
 *.db
 *.sqlite*

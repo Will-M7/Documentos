@@ -5,6 +5,8 @@ import { SesionProvider } from '../features/auth/SesionProvider'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { ClientesPage } from '../features/clientes/pages/ClientesPage'
 import { InicioPage } from '../features/inicio/pages/InicioPage'
+import { PlantillaDetallePage } from '../features/plantillas/pages/PlantillaDetallePage'
+import { PlantillasPage } from '../features/plantillas/pages/PlantillasPage'
 import { VariablesPage } from '../features/variables/pages/VariablesPage'
 import { LayoutPrincipal } from './LayoutPrincipal'
 import { RutaProtegida } from './RutaProtegida'
@@ -32,6 +34,8 @@ export function App() {
                   <Route index element={<InicioPage />} />
                   <Route path="clientes" element={<ClientesPage />} />
                   <Route element={<RutaSoloAdmin />}>
+                    <Route path="plantillas" element={<PlantillasPage />} />
+                    <Route path="plantillas/:id" element={<PlantillaDetallePage />} />
                     <Route path="variables" element={<VariablesPage />} />
                   </Route>
                 </Route>

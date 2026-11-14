@@ -40,6 +40,7 @@ services:
       ADMIN_USUARIO: ${ADMIN_USUARIO:-}
       ADMIN_CLAVE: ${ADMIN_CLAVE:-}
       ADMIN_NOMBRE: ${ADMIN_NOMBRE:-Administrador}
+      ARCHIVOS_DIR: /app/datos/archivos
     volumes:
       - archivos:/app/datos
     # Sin puertos publicados: solo la web (nginx) habla con el backend

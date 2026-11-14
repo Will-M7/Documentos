@@ -28,6 +28,9 @@ app:
   seguridad:
     jwt-secreto: ${JWT_SECRETO}
     duracion-token: ${DURACION_TOKEN:8h}
+  archivos:
+    # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
+    directorio: ${ARCHIVOS_DIR:./datos/archivos}
   admin-inicial:
     usuario: ${ADMIN_USUARIO:}
     clave: ${ADMIN_CLAVE:}

@@ -73,6 +73,14 @@ public class VariableService {
         return ordenadas;
     }
 
+    /** Variables con esos ids, en el mismo orden. */
+    @Transactional(readOnly = true)
+    public List<Variable> porIds(List<UUID> ids) {
+        Map<UUID, Variable> porId =
+                variables.findAllById(ids).stream().collect(Collectors.toMap(Variable::getId, Function.identity()));
+        return ids.stream().map(porId::get).filter(java.util.Objects::nonNull).toList();
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Variable> porClaves(Collection<String> claves) {
         return variables.findByClaveIn(claves).stream()

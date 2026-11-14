@@ -43,7 +43,7 @@ const ATENCION: Opcion[] = [
 
 /** Solo visibles para ADMIN. */
 const ADMINISTRACION: Opcion[] = [
-  { ruta: '/plantillas', texto: 'Plantillas', icono: <SnippetFolderOutlined />, disponible: false },
+  { ruta: '/plantillas', texto: 'Plantillas', icono: <SnippetFolderOutlined />, disponible: true },
   { ruta: '/variables', texto: 'Variables', icono: <DataObjectOutlined />, disponible: true },
   { ruta: '/usuarios', texto: 'Usuarios', icono: <ManageAccountsOutlined />, disponible: false },
   { ruta: '/configuracion', texto: 'Configuración', icono: <SettingsOutlined />, disponible: false },

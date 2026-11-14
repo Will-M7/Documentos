@@ -13,6 +13,8 @@ spring:
 app:
   seguridad:
     jwt-secreto: clave-de-pruebas-automaticas-de-32-caracteres-o-mas
+  archivos:
+    directorio: target/archivos-prueba
   admin-inicial:
     usuario: admin
     clave: clave-de-prueba-123

@@ -63,6 +63,36 @@ export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<
   return (await respuesta.json()) as T
 }
 
+/** Descarga un archivo protegido (DOCX, PDF) y lo guarda con su nombre. */
+export async function descargar(ruta: string, nombrePorDefecto: string) {
+  const blob = await obtenerArchivo(ruta)
+  const enlace = document.createElement('a')
+  enlace.href = URL.createObjectURL(blob.contenido)
+  enlace.download = blob.nombre ?? nombrePorDefecto
+  enlace.click()
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 10_000)
+}
+
+/** Obtiene un archivo protegido como Blob (por ejemplo, para mostrar un PDF en pantalla). */
+export async function obtenerArchivo(ruta: string): Promise<{ contenido: Blob; nombre: string | null }> {
+  const token = obtenerToken()
+  const respuesta = await fetch(`/api/v1${ruta}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!respuesta.ok) {
+    throw new ErrorApi(await leerProblema(respuesta))
+  }
+  return { contenido: await respuesta.blob(), nombre: nombreDeCabecera(respuesta.headers) }
+}
+
+function nombreDeCabecera(cabeceras: Headers): string | null {
+  const valor = cabeceras.get('Content-Disposition') ?? ''
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(valor)
+  if (utf8) return decodeURIComponent(utf8[1])
+  const simple = /filename="?([^";]+)"?/i.exec(valor)
+  return simple ? simple[1] : null
+}
+
 async function leerProblema(respuesta: Response): Promise<Problema> {
   try {
     const cuerpo = (await respuesta.json()) as Partial<Problema>
