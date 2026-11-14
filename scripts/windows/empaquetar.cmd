@@ -8,13 +8,13 @@ set SALIDA=%CD%\instalacion
 
 echo Compilando la web...
 pushd frontend
-call npm ci --no-audit --no-fund || exit /b 1
+if not exist node_modules call npm install --no-audit --no-fund || exit /b 1
 call npm run build || exit /b 1
 popd
 
 echo Compilando el backend...
 pushd backend
-call mvnw.cmd -B -q -DskipTests package || exit /b 1
+call "%CD%\mvnw.cmd" -B -q -DskipTests package || exit /b 1
 popd
 
 if exist "%SALIDA%" rmdir /s /q "%SALIDA%"
