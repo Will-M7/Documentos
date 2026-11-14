@@ -2,7 +2,7 @@
 
 Sistema para negocios tipo notaría: genera documentos (declaraciones juradas, cartas poder, contratos…) a partir de plantillas Word, completando los datos de las personas por DNI/RUC, con historial y registro de clientes.
 
-> **Estado:** fase 0 (esqueleto). Funcionan el inicio de sesión y la base de datos. Los módulos de clientes, plantillas y documentos llegan en la fase 1. La versión anterior (escritorio JavaFX) está en la rama `v1`.
+> **Estado:** fase 1 (MVP de oficina). Funcionan: usuarios y roles, clientes, catálogo de variables, plantillas Word versionadas, generación de documentos (Word, y PDF si hay LibreOffice), historial y consultas DNI/RUC con Factiliza/APIsPERU. La versión anterior (escritorio JavaFX) está en la rama `v1`.
 
 ## Arquitectura en una línea
 
@@ -37,4 +37,5 @@ Para instalar en un servidor también hay una opción con Docker Compose en [`in
 |---|---|
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Decisiones, módulos, modelo de datos, seguridad, hoja de ruta |
 | [docs/DESARROLLO.md](docs/DESARROLLO.md) | Requisitos, cómo levantar, comandos, cómo agregar módulos, flujo con Git |
+| [docs/GUIA-PRUEBAS.md](docs/GUIA-PRUEBAS.md) | Qué probar en cada pantalla y qué debe pasar |
 | API en vivo | `http://localhost:8080/api/docs` con el backend levantado |

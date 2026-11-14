@@ -13,6 +13,7 @@ Se desarrolla **sin Docker**: PostgreSQL instalado en Windows, el backend con `m
 | PostgreSQL | 16 o superior (servidor e instalación: 17) | Base de datos |
 | pgAdmin 4 | viene con PostgreSQL | Ver y consultar la base de datos |
 | Git | reciente | Control de versiones |
+| LibreOffice | opcional | Generar PDF idénticos al Word. Sin él, los documentos salen solo en Word |
 
 Maven no hace falta instalarlo: el backend trae `mvnw`.
 
@@ -83,6 +84,10 @@ npm run dev
 Abre http://localhost:5173 e ingresa con `admin` / `admin-local-123`. Vite redirige las llamadas `/api` al backend.
 
 **Documentación de la API:** http://localhost:8080/api/docs (botón *Authorize* → pegar el token del login).
+
+**Archivos generados:** las plantillas y documentos se guardan en `backend/datos/archivos/` (ignorada por Git). Si vacía la base de desarrollo, borre también esa carpeta.
+
+**Qué probar:** la lista paso a paso de cada pantalla está en [GUIA-PRUEBAS.md](GUIA-PRUEBAS.md). Hay una plantilla de ejemplo en `docs/ejemplos/carta-poder-simple.docx`.
 
 ## 5. (Opcional) Instalación completa con Docker
 

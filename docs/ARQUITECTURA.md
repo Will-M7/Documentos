@@ -1,6 +1,6 @@
 # Arquitectura — Estudio Documental v2
 
-> **Estado:** fase 0 implementada (esqueleto) · **Última actualización:** 14 de noviembre de 2026
+> **Estado:** fases 0 y 1 implementadas (ver [hoja de ruta](#18-hoja-de-ruta)) · **Última actualización:** 14 de noviembre de 2026
 > **Reemplaza a:** la aplicación de escritorio JavaFX + SQLite (v1), conservada en la rama `v1` (ver su `CONTEXTO.md`).
 
 Este documento define cómo se va a construir la nueva versión: qué tecnologías se usan y por qué, cómo se organiza el código, cómo es la base de datos y en qué orden se construye. Es la referencia para tomar decisiones; si algo cambia, se actualiza aquí primero.
@@ -208,31 +208,48 @@ clientes/
 | Validación | Anotaciones Bean Validation en los DTO; mensajes en español |
 | Documentación | Swagger UI en `/api/docs`, generada desde el código |
 
-**Endpoints principales (fase 1):**
+**Endpoints implementados** (detalle y pruebas en vivo en `/api/docs`):
 
 ```
-POST   /api/v1/auth/login
-GET    /api/v1/auth/yo                   Usuario dueño del token
-POST   /api/v1/auth/refresh              (fase 1)
+POST   /api/v1/auth/login                     Público
+GET    /api/v1/auth/yo                        Usuario dueño del token
+PUT    /api/v1/auth/clave                     Cambiar la propia contraseña
 
-GET    /api/v1/clientes?q=...                Búsqueda por nombre o documento
-POST   /api/v1/clientes
+GET    /api/v1/clientes?q=&pagina=&tamano=    Búsqueda por documento (inicio) o nombre (contiene)
+GET    /api/v1/clientes/documento/{tipo}/{n}  404 si no está en la base local
 GET    /api/v1/clientes/{id}
+POST   /api/v1/clientes
 PUT    /api/v1/clientes/{id}
+DELETE /api/v1/clientes/{id}                  ADMIN · baja lógica
 
-GET    /api/v1/plantillas
-POST   /api/v1/plantillas                    Subir DOCX (multipart)
-GET    /api/v1/plantillas/{id}               Incluye variables y participantes
-POST   /api/v1/plantillas/{id}/versiones     Subir nueva versión
+GET    /api/v1/variables
+POST   /api/v1/variables                      ADMIN
+PUT    /api/v1/variables/{id}                 ADMIN · la clave no cambia
 
-POST   /api/v1/consultas/{tipo}/{numero}     tipo = dni | ruc
-POST   /api/v1/documentos                    Generar
-GET    /api/v1/documentos?desde=&hasta=&q=   Historial
+GET    /api/v1/plantillas?soloActivas=
+GET    /api/v1/plantillas/{id}                Con participantes, variables y versiones
+POST   /api/v1/plantillas                     ADMIN · multipart (archivo, nombre, categoria, descripcion)
+POST   /api/v1/plantillas/{id}/versiones      ADMIN · multipart (archivo)
+PUT    /api/v1/plantillas/{id}                ADMIN · datos y configuración de participantes
+GET    /api/v1/plantillas/{id}/versiones/{n}/docx
+
+POST   /api/v1/consultas/{DNI|RUC}/{n}?actualizar=   Clientes primero; luego proveedores
+GET    /api/v1/credenciales                   ADMIN · con consultas del mes
+POST   /api/v1/credenciales                   ADMIN
+PUT    /api/v1/credenciales/{id}              ADMIN
+DELETE /api/v1/credenciales/{id}              ADMIN
+
+POST   /api/v1/documentos                     Generar
+GET    /api/v1/documentos?q=&desde=&hasta=    Historial
+GET    /api/v1/documentos/{id}
 GET    /api/v1/documentos/{id}/docx
-GET    /api/v1/documentos/{id}/pdf
+GET    /api/v1/documentos/{id}/pdf?verEnLinea=
+GET    /api/v1/documentos/estado-pdf
 
-GET    /api/v1/usuarios                      Solo ADMIN
-POST   /api/v1/usuarios                      Solo ADMIN
+GET    /api/v1/usuarios                       ADMIN
+POST   /api/v1/usuarios                       ADMIN
+PUT    /api/v1/usuarios/{id}                  ADMIN
+PUT    /api/v1/usuarios/{id}/clave            ADMIN · restablece y desbloquea
 ```
 
 ---
@@ -247,22 +264,21 @@ POST   /api/v1/usuarios                      Solo ADMIN
 - Borrado lógico (`activo = false`) en clientes, plantillas y usuarios, para no romper el historial.
 - Los archivos no van en la base: se guarda la ruta, el tamaño y el hash SHA-256.
 
-### 8.2 Modelo
+### 8.2 Modelo (implementado, migraciones V001 a V008)
 
 ```mermaid
 erDiagram
     usuario ||--o{ documento : genera
     plantilla ||--o{ plantilla_version : tiene
-    plantilla }o--o| categoria : pertenece
-    plantilla ||--o{ participante : define
-    participante ||--o{ campo_plantilla : agrupa
-    variable ||--o{ campo_plantilla : usa
+    plantilla ||--o{ plantilla_participante : define
+    plantilla ||--o{ plantilla_variable : usa
+    variable ||--o{ plantilla_variable : aparece_en
     plantilla_version ||--o{ documento : produce
     documento ||--o{ documento_participante : incluye
     cliente ||--o{ documento_participante : participa
     archivo ||--o{ plantilla_version : contiene
     archivo ||--o{ documento : contiene
-    usuario ||--o{ auditoria : registra
+    usuario ||--o{ consulta_externa : realiza
 
     usuario {
         uuid id PK
@@ -271,6 +287,8 @@ erDiagram
         text hash_clave
         text rol
         bool activo
+        int intentos_fallidos
+        timestamptz bloqueado_hasta
     }
     cliente {
         uuid id PK
@@ -278,30 +296,14 @@ erDiagram
         text tipo_documento
         text numero_documento
         text nombres
-        text apellidos
+        text apellido_paterno
+        text apellido_materno
         text razon_social
         text direccion
-        jsonb datos_extra
+        text telefono
+        text correo
         text origen
         bool activo
-    }
-    categoria {
-        uuid id PK
-        text nombre UK
-    }
-    plantilla {
-        uuid id PK
-        text nombre
-        text descripcion
-        uuid categoria_id FK
-        bool activo
-    }
-    plantilla_version {
-        uuid id PK
-        uuid plantilla_id FK
-        int numero
-        uuid archivo_id FK
-        text notas
     }
     variable {
         uuid id PK
@@ -309,85 +311,105 @@ erDiagram
         text etiqueta
         text tipo
         text valor_defecto
+        text descripcion
     }
-    participante {
+    plantilla {
+        uuid id PK
+        text nombre UK
+        text descripcion
+        text categoria
+        int version_actual
+        bool activo
+    }
+    plantilla_version {
+        uuid id PK
+        uuid plantilla_id FK
+        int numero
+        uuid archivo_id FK
+        text marcas
+    }
+    plantilla_participante {
         uuid id PK
         uuid plantilla_id FK
         text clave
         text etiqueta
         text tipo_cliente
+        text campos
         int orden
     }
-    campo_plantilla {
+    plantilla_variable {
         uuid id PK
         uuid plantilla_id FK
         uuid variable_id FK
-        uuid participante_id FK
-        text campo_cliente
-        bool obligatorio
         int orden
     }
     documento {
         uuid id PK
+        bigint numero UK
+        uuid plantilla_id FK
         uuid plantilla_version_id FK
+        text plantilla_nombre
         uuid usuario_id FK
         text titulo
-        jsonb valores
+        text valores
         uuid docx_archivo_id FK
         uuid pdf_archivo_id FK
     }
     documento_participante {
+        uuid id PK
         uuid documento_id FK
-        uuid cliente_id FK
         text participante
+        text etiqueta
+        uuid cliente_id FK
+        text nombre
+        text documento_identidad
     }
     archivo {
         uuid id PK
-        text ruta
+        text nombre_original
         text tipo_mime
         bigint tamano
         text sha256
+        text ruta UK
+    }
+    credencial_api {
+        uuid id PK
+        text proveedor
+        text nombre
+        text token_cifrado
+        text token_final
+        int prioridad
+        bool activo
     }
     consulta_externa {
         uuid id PK
         text tipo
         text numero
         text proveedor
-        text estado
-        jsonb respuesta
-    }
-    credencial_api {
-        uuid id PK
-        text proveedor
-        text nombre
-        bytea token_cifrado
-        bool activo
-    }
-    auditoria {
-        uuid id PK
+        bool exitosa
+        text mensaje
         uuid usuario_id FK
-        text accion
-        text entidad
-        uuid entidad_id
-        jsonb detalle
-        timestamptz creado_en
     }
 ```
+
+Todas las tablas tienen además `creado_en` y `actualizado_en`.
 
 ### 8.3 Tablas clave
 
 | Tabla | Notas |
 |---|---|
-| `cliente` | Único por (`tipo_documento`, `numero_documento`). `tipo` = `PERSONA` o `EMPRESA`. `origen` = `MANUAL`, `FACTILIZA` o `APISPERU`. Los campos poco comunes van en `datos_extra` (`jsonb`) |
-| `variable` | Catálogo compartido: una variable `dni` significa lo mismo en todas las plantillas. `tipo` = `TEXTO`, `TEXTO_LARGO`, `NUMERO`, `FECHA`, `MONEDA`, `DNI`, `RUC` |
-| `participante` | Los "roles" dentro de una plantilla (otorgante, apoderado, arrendador…). Permite usar varias personas en un mismo documento: `{{otorgante.nombres}}`, `{{apoderado.nombres}}` |
-| `campo_plantilla` | Qué variables usa la plantilla, a qué participante pertenecen, de qué campo del cliente se llenan y si son obligatorias |
-| `plantilla_version` | Cada DOCX subido es una versión nueva e inmutable. El documento guarda la versión exacta con la que se generó |
-| `documento` | `valores` (`jsonb`) guarda todos los valores usados, para regenerar idéntico aunque cambie el cliente |
-| `consulta_externa` | Registro de cada llamada a proveedores (control de costo y diagnóstico) |
-| `credencial_api` | Tokens cifrados con AES-GCM usando una clave maestra que viene de una variable de entorno, no de la base |
-
----
+| `usuario` | `rol` = `ADMIN` u `OPERADOR`. Se bloquea 15 minutos tras 5 intentos fallidos |
+| `cliente` | Único por (`tipo_documento`, `numero_documento`). `tipo` = `PERSONA` o `EMPRESA` (empresa siempre con RUC). `origen` = `MANUAL`, `FACTILIZA` o `APISPERU` |
+| `variable` | Catálogo compartido: `{{fecha}}` significa lo mismo en todas las plantillas. `tipo` = `TEXTO`, `TEXTO_LARGO`, `NUMERO`, `FECHA`, `MONEDA`. Se crean solas al subir una plantilla con marcas nuevas |
+| `plantilla` | `categoria` es texto libre (Poderes, Contratos…); no hizo falta una tabla aparte |
+| `plantilla_version` | Cada DOCX subido es una versión inmutable; `marcas` guarda las encontradas |
+| `plantilla_participante` | Roles dentro de la plantilla (`{{otorgante.nombres}}`, `{{apoderado.documento}}`). `campos` = datos de cliente que usa el Word. Su etiqueta y tipo se conservan entre versiones |
+| `plantilla_variable` | Variables del catálogo usadas por la versión actual |
+| `documento` | `numero` correlativo (n.º 1, 2, 3…). `valores` es JSON con lo ingresado y con el texto puesto en cada marca, para auditar o regenerar |
+| `documento_participante` | Quién ocupó cada rol, con su nombre y documento **tal como estaban** al generar |
+| `archivo` | Los DOCX y PDF van en disco (`app.archivos.directorio`); aquí la ruta, el tamaño y el SHA-256 |
+| `credencial_api` | Token cifrado con AES-GCM; la clave maestra viene de `APP_CLAVE_MAESTRA`, no de la base |
+| `consulta_externa` | Cada llamada pagada a un proveedor, para controlar el costo mensual |
 
 ## 9. Generación de documentos
 
@@ -599,8 +621,8 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 | Fase | Objetivo | Entregables |
 |---|---|---|
 | **0. Fundaciones** ✅ | Esqueleto que compila y se instala | Monorepo; backend con login y salud; Flyway; frontend con login; Docker Compose; CI |
-| **1. MVP oficina** | Reemplazar la v1 en el uso diario | Clientes, consultas DNI/RUC, plantillas con participantes, generación DOCX/PDF, historial, usuarios |
-| **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real |
+| **1. MVP oficina** ✅ | Reemplazar la v1 en el uso diario | Clientes, consultas DNI/RUC, plantillas con participantes, generación DOCX/PDF, historial, usuarios |
+| **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real. Pendientes de la fase 1: token de renovación (hoy un token de 8 h) y límite de consultas por minuto |
 | **3. Portal de clientes** | Que el cliente final haga su trámite | Rol `CLIENTE`, registro, plantillas públicas, revisión por el operador antes de entregar, despliegue en internet con HTTPS |
 | **4. App móvil** | Lo mismo desde el celular | React Native sobre la misma API |
 
