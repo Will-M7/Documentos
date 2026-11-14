@@ -14,13 +14,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import pe.estudiodocumental.PostgresDePrueba;
+import pe.estudiodocumental.BaseDePruebasLimpia;
 
-/** Login, token y rutas protegidas contra un PostgreSQL real con las migraciones aplicadas. */
+/** Login, token y rutas protegidas contra PostgreSQL real (base estudio_documental_test). */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(PostgresDePrueba.class)
+@Import(BaseDePruebasLimpia.class)
 class AutenticacionIntegrationTest {
 
     @Autowired

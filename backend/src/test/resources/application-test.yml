@@ -1,9 +1,14 @@
-# La conexión real la provee Testcontainers (PostgresDePrueba); estos valores solo evitan
-# que falten las variables de entorno obligatorias.
+# Pruebas automáticas: usan una base SEPARADA (estudio_documental_test) en el PostgreSQL local,
+# para no tocar los datos de desarrollo. Ver docs/DESARROLLO.md, sección 2.
+# En la CI, los mismos valores se pasan por variables de entorno.
 spring:
   datasource:
-    username: no-usado
-    password: no-usado
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/estudio_documental_test}
+    username: ${TEST_DB_USUARIO:estudio}
+    password: ${TEST_DB_CLAVE:estudio_local}
+  flyway:
+    # Permite vaciar la base al iniciar las pruebas (ver BaseDePruebasLimpia). Nunca en otros perfiles.
+    clean-disabled: false
 
 app:
   seguridad:

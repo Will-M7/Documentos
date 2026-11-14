@@ -2,7 +2,7 @@
 
 Sistema para negocios tipo notaría: genera documentos (declaraciones juradas, cartas poder, contratos…) a partir de plantillas Word, completando los datos de las personas por DNI/RUC, con historial y registro de clientes.
 
-> **Estado:** fase 0 (esqueleto). Funcionan el inicio de sesión, la base de datos y la instalación con Docker. Los módulos de clientes, plantillas y documentos llegan en la fase 1. La versión anterior (escritorio JavaFX) está en la rama `v1`.
+> **Estado:** fase 0 (esqueleto). Funcionan el inicio de sesión y la base de datos. Los módulos de clientes, plantillas y documentos llegan en la fase 1. La versión anterior (escritorio JavaFX) está en la rama `v1`.
 
 ## Arquitectura en una línea
 
@@ -13,22 +13,23 @@ Sistema para negocios tipo notaría: genera documentos (declaraciones juradas, c
 | Backend | [`backend/`](backend) | Java 21, Spring Boot 4, Spring Security (JWT), JPA, Flyway |
 | Frontend | [`frontend/`](frontend) | React 19, TypeScript, Vite, MUI, TanStack Query |
 | Base de datos | [`backend/src/main/resources/db/migration/`](backend/src/main/resources/db/migration) | PostgreSQL 17 (migraciones Flyway) |
-| Instalación | [`infra/`](infra) | Docker Compose |
+| Instalación en servidor | [`infra/`](infra) | Docker Compose (opcional) |
 | CI | [`.github/workflows/`](.github/workflows) | GitHub Actions |
 
 ## Empezar
 
-Con Docker Desktop abierto:
+Se desarrolla con PostgreSQL instalado en Windows, sin Docker. Los pasos completos (instalar PostgreSQL, crear la base, levantar backend y web) están en [docs/DESARROLLO.md](docs/DESARROLLO.md).
+
+Resumen, con PostgreSQL ya instalado y la base creada:
 
 ```bash
-cp infra/.env.example infra/.env     # y cambiar las claves
-cd infra
-docker compose --env-file .env up -d --build
+cd backend && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+cd frontend && npm install && npm run dev
 ```
 
-Abre http://localhost:8080 e ingresa con `ADMIN_USUARIO` / `ADMIN_CLAVE` de tu `.env`.
+Abre http://localhost:5173 e ingresa con `admin` / `admin-local-123` (solo en desarrollo).
 
-Para programar (backend y frontend con recarga automática), sigue [docs/DESARROLLO.md](docs/DESARROLLO.md).
+Para instalar en un servidor también hay una opción con Docker Compose en [`infra/`](infra) (opcional).
 
 ## Documentación
 

@@ -86,7 +86,7 @@ Cada decisión indica la alternativa descartada y el motivo, para no volver a di
 | D8 | **Archivos en disco, metadatos en la base** | Archivos como BLOB en la base (v1) | La base se mantiene liviana y los respaldos son más rápidos; el almacenamiento queda detrás de una interfaz para pasar a la nube (S3/MinIO) sin cambiar el resto |
 | D9 | **React + TypeScript** | Angular, Vue, JavaFX | El más extendido; el conocimiento se reutiliza en la app móvil con React Native |
 | D10 | **Autenticación con JWT** | Sesión con cookie | Un solo mecanismo para web, portal y móvil |
-| D11 | **Docker Compose para instalar** | Instalar cada programa a mano | Una instalación idéntica en desarrollo y en la oficina, con un solo comando |
+| D11 | **Desarrollo sin Docker; Docker Compose opcional para instalar** | Docker obligatorio | El equipo trabaja con PostgreSQL instalado en Windows (como Laragon). Docker queda como forma rápida de instalar en un servidor; no cambia el costo de hospedaje |
 
 ---
 
@@ -138,7 +138,7 @@ Versiones fijadas en la fase 0 (noviembre de 2026). Las exactas están en `backe
 | PDF | LibreOffice headless (`soffice --convert-to pdf`) | Conversión fiel |
 | Documentación API | springdoc-openapi 3 | Swagger UI en `/api/docs` |
 | Formato backend | Spotless (Palantir Java Format) | `./mvnw spotless:apply` |
-| Pruebas backend | JUnit 5, AssertJ, Testcontainers (PostgreSQL real), MockMvc | |
+| Pruebas backend | JUnit 5, AssertJ, MockMvc contra PostgreSQL real (base `estudio_documental_test`) | |
 | Lenguaje frontend | TypeScript | |
 | Framework web | React 19 + Vite 8 | |
 | UI | MUI 9 (Material UI) | Componentes listos y accesibles |
@@ -147,7 +147,7 @@ Versiones fijadas en la fase 0 (noviembre de 2026). Las exactas están en `backe
 | Formularios | React Hook Form + Zod | Formularios y validación |
 | Pruebas frontend | Vitest, Testing Library; Playwright (E2E) desde la fase 1 | |
 | Calidad frontend | oxlint + Prettier | Revisión y formato automáticos |
-| Infraestructura | Docker Compose | Instalación local |
+| Infraestructura | Docker Compose (opcional) | Instalación en servidor con un comando |
 | CI | GitHub Actions | Compilar y probar cada PR |
 
 ---
@@ -566,7 +566,7 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 
 **Pruebas mínimas por PR**
 
-- Backend: pruebas unitarias de reglas de negocio y pruebas de integración de cada endpoint con PostgreSQL real (Testcontainers).
+- Backend: pruebas unitarias de reglas de negocio y pruebas de integración de cada endpoint con PostgreSQL real (base de pruebas local; en la CI, un servicio PostgreSQL).
 - Frontend: pruebas de componentes con lógica; un flujo E2E del caso principal.
 - La CI (GitHub Actions) compila, prueba y revisa formato; un PR con la CI en rojo no se integra.
 
