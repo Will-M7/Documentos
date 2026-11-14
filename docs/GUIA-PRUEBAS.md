@@ -109,6 +109,15 @@ Sin token real se puede probar todo menos 6.3 a 6.5.
 | 7.5 | Ícono 🔑 (barra superior) → cambiar la propia contraseña | “Contraseña cambiada.” |
 | 7.6 | Abrir su propio usuario admin | No permite quitarse el rol ni desactivarse |
 
+## Bloque 8: Auditoría (solo administrador)
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 8.1 | Hacer algunas acciones: ingresar con contraseña equivocada, crear un cliente, generar y descargar un documento | — |
+| 8.2 | Menú **Auditoría** | Aparecen, de la más reciente a la más antigua: “Descargó un documento”, “Generó un documento”, “Registró un cliente”, “Contraseña incorrecta”, con usuario y fecha |
+| 8.3 | Buscar el DNI del cliente o el n.º del documento | Solo los registros relacionados |
+| 8.4 | Ingresar como operador | No ve el menú Auditoría |
+
 ---
 
 ## Si algo falla

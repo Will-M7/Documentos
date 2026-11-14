@@ -1,5 +1,6 @@
 import DataObjectOutlined from '@mui/icons-material/DataObjectOutlined'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
+import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined'
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import HomeOutlined from '@mui/icons-material/HomeOutlined'
 import KeyOutlined from '@mui/icons-material/KeyOutlined'
@@ -48,6 +49,7 @@ const ADMINISTRACION: Opcion[] = [
   { ruta: '/plantillas', texto: 'Plantillas', icono: <SnippetFolderOutlined />, disponible: true },
   { ruta: '/variables', texto: 'Variables', icono: <DataObjectOutlined />, disponible: true },
   { ruta: '/usuarios', texto: 'Usuarios', icono: <ManageAccountsOutlined />, disponible: true },
+  { ruta: '/auditoria', texto: 'Auditoría', icono: <FactCheckOutlined />, disponible: true },
   { ruta: '/configuracion', texto: 'Configuración', icono: <SettingsOutlined />, disponible: true },
 ]
 

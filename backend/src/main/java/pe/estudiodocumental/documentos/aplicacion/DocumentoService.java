@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -23,6 +24,7 @@ import pe.estudiodocumental.clientes.dominio.TipoCliente;
 import pe.estudiodocumental.clientes.dominio.TipoDocumento;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.documentos.dominio.Documento;
 import pe.estudiodocumental.documentos.infraestructura.ConversorPdf;
 import pe.estudiodocumental.documentos.infraestructura.DocumentoRepository;
@@ -51,19 +53,23 @@ public class DocumentoService {
     private final ConversorPdf conversorPdf;
     private final JsonMapper json;
 
+    private final ApplicationEventPublisher eventos;
+
     public DocumentoService(
             DocumentoRepository documentos,
             PlantillaService plantillas,
             ClienteService clientes,
             ArchivoService archivos,
             ConversorPdf conversorPdf,
-            JsonMapper json) {
+            JsonMapper json,
+            ApplicationEventPublisher eventos) {
         this.documentos = documentos;
         this.plantillas = plantillas;
         this.clientes = clientes;
         this.archivos = archivos;
         this.conversorPdf = conversorPdf;
         this.json = json;
+        this.eventos = eventos;
     }
 
     /** Datos de un participante tal como llegan del formulario. */
@@ -123,7 +129,13 @@ public class DocumentoService {
                 .convertir(relleno.docx())
                 .map(pdf -> archivos.guardar(nombreArchivo(tituloFinal, "pdf"), ArchivoService.MIME_PDF, pdf))
                 .ifPresent(pdf -> documento.adjuntarPdf(pdf.getId()));
-        return documentos.saveAndFlush(documento);
+        Documento guardado = documentos.saveAndFlush(documento);
+        eventos.publishEvent(EventoAuditoria.de(
+                "DOCUMENTO_GENERADO",
+                "documento",
+                guardado.getId(),
+                "N.º %d · %s".formatted(guardado.getNumero(), guardado.getTitulo())));
+        return guardado;
     }
 
     @Transactional(readOnly = true)
@@ -160,7 +172,7 @@ public class DocumentoService {
         return json.readValue(documento.getValores(), new TypeReference<>() {});
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ArchivoService.Contenido archivo(UUID id, boolean pdf) {
         Documento documento = obtener(id);
         UUID archivoId = pdf ? documento.getPdfArchivoId() : documento.getDocxArchivoId();
@@ -168,6 +180,11 @@ public class DocumentoService {
             throw new RecursoNoEncontradoException(
                     Optional.ofNullable(conversorPdf.estado()).orElse("Este documento no tiene PDF."));
         }
+        eventos.publishEvent(EventoAuditoria.de(
+                "DOCUMENTO_DESCARGADO",
+                "documento",
+                id,
+                "N.º %d · %s (%s)".formatted(documento.getNumero(), documento.getTitulo(), pdf ? "PDF" : "Word")));
         return archivos.leer(archivoId);
     }
 

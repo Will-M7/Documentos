@@ -2,6 +2,7 @@ package pe.estudiodocumental.identidad.aplicacion;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.comun.error.ConflictoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.identidad.dominio.Rol;
 import pe.estudiodocumental.identidad.dominio.Usuario;
 import pe.estudiodocumental.identidad.infraestructura.UsuarioRepository;
@@ -20,9 +22,13 @@ public class UsuarioService {
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarios, PasswordEncoder passwordEncoder) {
+    private final ApplicationEventPublisher eventos;
+
+    public UsuarioService(
+            UsuarioRepository usuarios, PasswordEncoder passwordEncoder, ApplicationEventPublisher eventos) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
+        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -42,8 +48,11 @@ public class UsuarioService {
         if (nombre == null || nombre.isBlank()) {
             throw new ReglaNegocioException("Escriba el nombre de la persona.");
         }
-        return usuarios.save(
+        Usuario nuevo = usuarios.save(
                 new Usuario(nombreUsuario, nombre, passwordEncoder.encode(PoliticaClave.validar(clave)), rol));
+        eventos.publishEvent(EventoAuditoria.de(
+                "USUARIO_CREADO", "usuario", nuevo.getId(), nuevo.getNombreUsuario() + " (" + rol + ")"));
+        return nuevo;
     }
 
     /**
@@ -57,13 +66,20 @@ public class UsuarioService {
             throw new ReglaNegocioException("No puede quitarse el rol de administrador ni desactivarse a sí mismo.");
         }
         usuario.editar(nombre, rol, activo);
+        eventos.publishEvent(EventoAuditoria.de(
+                "USUARIO_EDITADO",
+                "usuario",
+                id,
+                "%s · %s · %s".formatted(usuario.getNombreUsuario(), rol, activo ? "activo" : "desactivado")));
         return usuario;
     }
 
     /** El administrador asigna una contraseña nueva (por ejemplo, si alguien la olvidó) y desbloquea. */
     @Transactional
     public void restablecerClave(UUID id, String nueva) {
-        obtener(id).cambiarClave(passwordEncoder.encode(PoliticaClave.validar(nueva)));
+        Usuario usuario = obtener(id);
+        usuario.cambiarClave(passwordEncoder.encode(PoliticaClave.validar(nueva)));
+        eventos.publishEvent(EventoAuditoria.de("CLAVE_RESTABLECIDA", "usuario", id, usuario.getNombreUsuario()));
     }
 
     private Usuario obtener(UUID id) {

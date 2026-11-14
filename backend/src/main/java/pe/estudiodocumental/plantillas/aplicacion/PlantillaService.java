@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.archivos.aplicacion.ArchivoService;
@@ -15,6 +16,7 @@ import pe.estudiodocumental.archivos.dominio.Archivo;
 import pe.estudiodocumental.comun.error.ConflictoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.plantillas.dominio.CampoParticipante;
 import pe.estudiodocumental.plantillas.dominio.Marca;
 import pe.estudiodocumental.plantillas.dominio.Plantilla;
@@ -38,17 +40,21 @@ public class PlantillaService {
     private final ArchivoService archivos;
     private final VariableService variables;
 
+    private final ApplicationEventPublisher eventos;
+
     public PlantillaService(
             PlantillaRepository plantillas,
             PlantillaVersionRepository versiones,
             MotorDocx motor,
             ArchivoService archivos,
-            VariableService variables) {
+            VariableService variables,
+            ApplicationEventPublisher eventos) {
         this.plantillas = plantillas;
         this.versiones = versiones;
         this.motor = motor;
         this.archivos = archivos;
         this.variables = variables;
+        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +92,8 @@ public class PlantillaService {
         }
         Plantilla plantilla = new Plantilla(nombre, descripcion, categoria);
         registrarVersion(plantilla, nombreArchivo, docx);
+        eventos.publishEvent(
+                EventoAuditoria.de("PLANTILLA_SUBIDA", "plantilla", plantilla.getId(), plantilla.getNombre()));
         return plantilla;
     }
 
@@ -93,6 +101,8 @@ public class PlantillaService {
     public Plantilla subirVersion(UUID id, String nombreArchivo, byte[] docx) {
         Plantilla plantilla = obtener(id);
         registrarVersion(plantilla, nombreArchivo, docx);
+        eventos.publishEvent(EventoAuditoria.de(
+                "PLANTILLA_VERSION", "plantilla", id, plantilla.getNombre() + " v" + plantilla.getVersionActual()));
         return plantilla;
     }
 
@@ -116,6 +126,7 @@ public class PlantillaService {
         for (ConfiguracionParticipante c : participantes) {
             plantilla.participante(c.clave()).configurar(c.etiqueta(), c.tipoCliente());
         }
+        eventos.publishEvent(EventoAuditoria.de("PLANTILLA_EDITADA", "plantilla", id, plantilla.getNombre()));
         return plantilla;
     }
 

@@ -3,10 +3,12 @@ package pe.estudiodocumental.consultas.aplicacion;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.consultas.dominio.CredencialApi;
 import pe.estudiodocumental.consultas.dominio.Proveedor;
 import pe.estudiodocumental.consultas.infraestructura.CifradoTokens;
@@ -22,11 +24,17 @@ public class CredencialService {
     private final ConsultaExternaRepository consultas;
     private final CifradoTokens cifrado;
 
+    private final ApplicationEventPublisher eventos;
+
     public CredencialService(
-            CredencialRepository credenciales, ConsultaExternaRepository consultas, CifradoTokens cifrado) {
+            CredencialRepository credenciales,
+            ConsultaExternaRepository consultas,
+            CifradoTokens cifrado,
+            ApplicationEventPublisher eventos) {
         this.credenciales = credenciales;
         this.consultas = consultas;
         this.cifrado = cifrado;
+        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -37,8 +45,11 @@ public class CredencialService {
     @Transactional
     public CredencialApi crear(Proveedor proveedor, String nombre, String token, int prioridad) {
         String limpio = validarToken(token);
-        return credenciales.save(
+        CredencialApi nueva = credenciales.save(
                 new CredencialApi(proveedor, nombre, cifrado.cifrar(limpio), finalDe(limpio), prioridad));
+        eventos.publishEvent(EventoAuditoria.de(
+                "CREDENCIAL_GUARDADA", "credencial", nueva.getId(), proveedor.nombre() + " " + nueva.getTokenFinal()));
+        return nueva;
     }
 
     /** Edita nombre, prioridad y estado; el token solo cambia si se envía uno nuevo. */
@@ -52,12 +63,18 @@ public class CredencialService {
             String limpio = validarToken(tokenNuevo);
             credencial.cambiarToken(cifrado.cifrar(limpio), finalDe(limpio));
         }
+        eventos.publishEvent(EventoAuditoria.de(
+                "CREDENCIAL_GUARDADA",
+                "credencial",
+                id,
+                credencial.getProveedor().nombre() + " " + credencial.getTokenFinal()));
         return credencial;
     }
 
     @Transactional
     public void eliminar(UUID id) {
         credenciales.deleteById(id);
+        eventos.publishEvent(EventoAuditoria.de("CREDENCIAL_ELIMINADA", "credencial", id, null));
     }
 
     /** Consultas externas hechas desde el inicio del mes (para vigilar el costo). */

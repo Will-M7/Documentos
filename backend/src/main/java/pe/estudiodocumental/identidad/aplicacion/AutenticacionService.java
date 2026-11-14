@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.comun.error.NoAutenticadoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.identidad.dominio.Usuario;
 import pe.estudiodocumental.identidad.infraestructura.SeguridadProperties;
 import pe.estudiodocumental.identidad.infraestructura.UsuarioRepository;
@@ -31,15 +33,19 @@ public class AutenticacionService {
     private final JwtEncoder jwtEncoder;
     private final SeguridadProperties propiedades;
 
+    private final ApplicationEventPublisher eventos;
+
     public AutenticacionService(
             UsuarioRepository usuarios,
             PasswordEncoder passwordEncoder,
             JwtEncoder jwtEncoder,
-            SeguridadProperties propiedades) {
+            SeguridadProperties propiedades,
+            ApplicationEventPublisher eventos) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
         this.propiedades = propiedades;
+        this.eventos = eventos;
     }
 
     /**
@@ -61,9 +67,18 @@ public class AutenticacionService {
         }
         if (!passwordEncoder.matches(clave, usuario.getHashClave())) {
             usuario.registrarIntentoFallido(ahora);
+            boolean bloqueado = usuario.estaBloqueado(ahora);
+            eventos.publishEvent(new EventoAuditoria(
+                    bloqueado ? "USUARIO_BLOQUEADO" : "INGRESO_FALLIDO",
+                    "usuario",
+                    usuario.getId(),
+                    usuario.getNombreUsuario(),
+                    usuario.getId()));
             throw new NoAutenticadoException(CREDENCIALES_INVALIDAS);
         }
         usuario.desbloquear();
+        eventos.publishEvent(new EventoAuditoria(
+                "INGRESO", "usuario", usuario.getId(), usuario.getNombreUsuario(), usuario.getId()));
         return emitirToken(usuario);
     }
 
@@ -75,6 +90,7 @@ public class AutenticacionService {
             throw new ReglaNegocioException("La contraseña actual no es correcta.");
         }
         usuario.cambiarClave(passwordEncoder.encode(PoliticaClave.validar(nueva)));
+        eventos.publishEvent(EventoAuditoria.de("CLAVE_CAMBIADA", "usuario", id, usuario.getNombreUsuario()));
     }
 
     @Transactional(readOnly = true)

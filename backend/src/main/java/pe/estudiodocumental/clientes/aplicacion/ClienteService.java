@@ -2,6 +2,7 @@ package pe.estudiodocumental.clientes.aplicacion;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -14,6 +15,7 @@ import pe.estudiodocumental.clientes.dominio.TipoDocumento;
 import pe.estudiodocumental.clientes.infraestructura.ClienteRepository;
 import pe.estudiodocumental.comun.error.ConflictoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 
 /**
  * Casos de uso de clientes. Es la única puerta de entrada al módulo: otros módulos (documentos, consultas) usan
@@ -26,8 +28,11 @@ public class ClienteService {
 
     private final ClienteRepository clientes;
 
-    public ClienteService(ClienteRepository clientes) {
+    private final ApplicationEventPublisher eventos;
+
+    public ClienteService(ClienteRepository clientes, ApplicationEventPublisher eventos) {
         this.clientes = clientes;
+        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -66,7 +71,9 @@ public class ClienteService {
                     return existente;
                 })
                 .orElseGet(() -> new Cliente(datos, OrigenDatos.MANUAL));
-        return clientes.save(cliente);
+        Cliente guardado = clientes.save(cliente);
+        eventos.publishEvent(EventoAuditoria.de("CLIENTE_CREADO", "cliente", guardado.getId(), resumen(guardado)));
+        return guardado;
     }
 
     @Transactional
@@ -79,12 +86,15 @@ public class ClienteService {
                             "Ese documento ya pertenece a otro cliente: %s.".formatted(otro.getNombreCompleto()));
                 });
         cliente.actualizar(datos);
+        eventos.publishEvent(EventoAuditoria.de("CLIENTE_EDITADO", "cliente", id, resumen(cliente)));
         return cliente;
     }
 
     @Transactional
     public void desactivar(UUID id) {
-        obtener(id).desactivar();
+        Cliente cliente = obtener(id);
+        cliente.desactivar();
+        eventos.publishEvent(EventoAuditoria.de("CLIENTE_BAJA", "cliente", id, resumen(cliente)));
     }
 
     /**
@@ -99,5 +109,9 @@ public class ClienteService {
                     return existente;
                 })
                 .orElseGet(() -> clientes.save(new Cliente(datos, origen)));
+    }
+
+    private static String resumen(Cliente c) {
+        return "%s %s · %s".formatted(c.getTipoDocumento(), c.getNumeroDocumento(), c.getNombreCompleto());
     }
 }

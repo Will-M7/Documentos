@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.clientes.aplicacion.ClienteService;
@@ -15,6 +16,7 @@ import pe.estudiodocumental.clientes.dominio.OrigenDatos;
 import pe.estudiodocumental.clientes.dominio.TipoCliente;
 import pe.estudiodocumental.clientes.dominio.TipoDocumento;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.consultas.dominio.ConsultaExterna;
 import pe.estudiodocumental.consultas.dominio.CredencialApi;
 import pe.estudiodocumental.consultas.dominio.Proveedor;
@@ -39,16 +41,20 @@ public class ConsultaService {
     private final CifradoTokens cifrado;
     private final Map<Proveedor, ProveedorConsulta> proveedores;
 
+    private final ApplicationEventPublisher eventos;
+
     public ConsultaService(
             ClienteService clientes,
             CredencialRepository credenciales,
             ConsultaExternaRepository registro,
             CifradoTokens cifrado,
-            List<ProveedorConsulta> proveedores) {
+            List<ProveedorConsulta> proveedores,
+            ApplicationEventPublisher eventos) {
         this.clientes = clientes;
         this.credenciales = credenciales;
         this.registro = registro;
         this.cifrado = cifrado;
+        this.eventos = eventos;
         this.proveedores =
                 proveedores.stream().collect(Collectors.toMap(ProveedorConsulta::proveedor, Function.identity()));
     }
@@ -93,6 +99,15 @@ public class ConsultaService {
                         proveedor.consultar(tipo.name(), normalizado, cifrado.descifrar(credencial.getTokenCifrado()));
                 Cliente cliente = clientes.guardarOCompletar(aDatosCliente(tipo, datos), origen(credencial));
                 credencial.registrarUso("Correcta");
+                eventos.publishEvent(EventoAuditoria.de(
+                        "CONSULTA_EXTERNA",
+                        "cliente",
+                        cliente.getId(),
+                        "%s %s vía %s"
+                                .formatted(
+                                        tipo,
+                                        normalizado,
+                                        credencial.getProveedor().nombre())));
                 registro.save(new ConsultaExterna(
                         tipo.name(), normalizado, credencial.getProveedor(), true, null, usuarioId));
                 return new Resultado(
