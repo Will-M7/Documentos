@@ -45,6 +45,8 @@ describe('Inicio de sesión', () => {
       respuestaJson(200, {
         token: 'token-de-prueba',
         expiraEn: new Date(Date.now() + 60_000).toISOString(),
+        tokenSesion: 'sesion-de-prueba',
+        sesionExpiraEn: new Date(Date.now() + 3_600_000).toISOString(),
         usuario: { id: '1', usuario: 'admin', nombre: 'Ana Pérez', rol: 'ADMIN' },
       }),
     )

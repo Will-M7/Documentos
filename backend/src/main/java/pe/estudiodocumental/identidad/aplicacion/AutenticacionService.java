@@ -1,7 +1,13 @@
 package pe.estudiodocumental.identidad.aplicacion;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
@@ -17,11 +23,13 @@ import pe.estudiodocumental.comun.error.NoAutenticadoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
 import pe.estudiodocumental.comun.eventos.EventoAuditoria;
+import pe.estudiodocumental.identidad.dominio.Sesion;
 import pe.estudiodocumental.identidad.dominio.Usuario;
 import pe.estudiodocumental.identidad.infraestructura.SeguridadProperties;
+import pe.estudiodocumental.identidad.infraestructura.SesionRepository;
 import pe.estudiodocumental.identidad.infraestructura.UsuarioRepository;
 
-/** Casos de uso de autenticación: iniciar sesión y consultar el usuario actual. */
+/** Casos de uso de autenticación: iniciar, renovar y cerrar sesión, y consultar el usuario actual. */
 @Service
 public class AutenticacionService {
 
@@ -32,6 +40,8 @@ public class AutenticacionService {
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
     private final SeguridadProperties propiedades;
+    private final SesionRepository sesiones;
+    private final SecureRandom azar = new SecureRandom();
 
     private final ApplicationEventPublisher eventos;
 
@@ -40,11 +50,13 @@ public class AutenticacionService {
             PasswordEncoder passwordEncoder,
             JwtEncoder jwtEncoder,
             SeguridadProperties propiedades,
+            SesionRepository sesiones,
             ApplicationEventPublisher eventos) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
         this.propiedades = propiedades;
+        this.sesiones = sesiones;
         this.eventos = eventos;
     }
 
@@ -82,6 +94,37 @@ public class AutenticacionService {
         return emitirToken(usuario);
     }
 
+    /**
+     * Entrega un token de acceso nuevo a cambio del token de sesión, sin pedir la contraseña. El token de sesión se
+     * cambia por otro (rotación); si alguien presenta uno ya usado, se cierran todas las sesiones del usuario.
+     */
+    @Transactional(noRollbackFor = NoAutenticadoException.class)
+    public TokenEmitido renovar(String tokenSesion) {
+        Instant ahora = Instant.now();
+        Sesion sesion = sesiones.findByHashToken(hash(tokenSesion))
+                .orElseThrow(() -> new NoAutenticadoException("La sesión no es válida. Ingrese de nuevo."));
+        if (sesion.isRevocada()) {
+            sesiones.revocarTodas(sesion.getUsuarioId());
+            throw new NoAutenticadoException("La sesión fue cerrada. Ingrese de nuevo.");
+        }
+        if (!sesion.vigente(ahora)) {
+            throw new NoAutenticadoException("La sesión venció. Ingrese de nuevo.");
+        }
+        Usuario usuario = usuarios.findById(sesion.getUsuarioId())
+                .filter(Usuario::isActivo)
+                .orElseThrow(() -> new NoAutenticadoException("El usuario está desactivado."));
+        sesion.revocar();
+        return emitirToken(usuario);
+    }
+
+    /** Cierra la sesión de este navegador. No falla si ya estaba cerrada. */
+    @Transactional
+    public void cerrarSesion(String tokenSesion) {
+        if (tokenSesion != null && !tokenSesion.isBlank()) {
+            sesiones.findByHashToken(hash(tokenSesion)).ifPresent(Sesion::revocar);
+        }
+    }
+
     /** El propio usuario cambia su contraseña indicando la actual. */
     @Transactional
     public void cambiarMiClave(UUID id, String actual, String nueva) {
@@ -114,9 +157,30 @@ public class AutenticacionService {
         JwsHeader cabecera = JwsHeader.with(MacAlgorithm.HS256).build();
         String token =
                 jwtEncoder.encode(JwtEncoderParameters.from(cabecera, claims)).getTokenValue();
-        return new TokenEmitido(token, expira, usuario);
+
+        byte[] bytes = new byte[32];
+        azar.nextBytes(bytes);
+        String tokenSesion = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        Instant sesionExpira = ahora.plus(propiedades.duracionSesion());
+        sesiones.save(new Sesion(usuario.getId(), hash(tokenSesion), sesionExpira));
+        return new TokenEmitido(token, expira, tokenSesion, sesionExpira, usuario);
     }
 
-    /** Resultado de un inicio de sesión exitoso. */
-    public record TokenEmitido(String token, Instant expiraEn, Usuario usuario) {}
+    private static String hash(String token) {
+        try {
+            return HexFormat.of()
+                    .formatHex(MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Resultado de iniciar o renovar sesión.
+     *
+     * @param token token de acceso (corto) para el encabezado Authorization.
+     * @param tokenSesion token para renovar el acceso sin contraseña; se guarda solo su hash.
+     */
+    public record TokenEmitido(
+            String token, Instant expiraEn, String tokenSesion, Instant sesionExpiraEn, Usuario usuario) {}
 }

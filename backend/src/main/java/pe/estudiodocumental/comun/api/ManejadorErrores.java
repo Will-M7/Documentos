@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import pe.estudiodocumental.comun.error.ConflictoException;
+import pe.estudiodocumental.comun.error.LimiteExcedidoException;
 import pe.estudiodocumental.comun.error.NoAutenticadoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
@@ -39,6 +40,11 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ConflictoException.class)
     ProblemDetail conflicto(ConflictoException e) {
         return problema(HttpStatus.CONFLICT, "Ya existe", e.getMessage());
+    }
+
+    @ExceptionHandler(LimiteExcedidoException.class)
+    ProblemDetail limite(LimiteExcedidoException e) {
+        return problema(HttpStatus.TOO_MANY_REQUESTS, "Límite alcanzado", e.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

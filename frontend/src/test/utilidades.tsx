@@ -9,6 +9,8 @@ export function abrirComoAdmin(ruta: string) {
     JSON.stringify({
       token: 'token-de-prueba',
       expiraEn: new Date(Date.now() + 3_600_000).toISOString(),
+      tokenSesion: 'sesion-de-prueba',
+      sesionExpiraEn: new Date(Date.now() + 3_600_000).toISOString(),
       usuario: { id: '1', usuario: 'admin', nombre: 'Ana Pérez', rol: 'ADMIN' },
     }),
   )

@@ -212,6 +212,8 @@ clientes/
 
 ```
 POST   /api/v1/auth/login                     Público
+POST   /api/v1/auth/renovar                   Público · token de sesión → acceso nuevo
+POST   /api/v1/auth/salir                     Público · cierra la sesión de este navegador
 GET    /api/v1/auth/yo                        Usuario dueño del token
 PUT    /api/v1/auth/clave                     Cambiar la propia contraseña
 
@@ -462,7 +464,7 @@ La conversión a PDF se hace con una cola interna de 1–2 procesos de LibreOffi
 2. **Proveedores en orden:** Factiliza y luego APIsPERU (orden configurable). Si uno falla por red, tiempo o límite de uso, se prueba el siguiente.
 3. **Adaptadores:** cada proveedor implementa la interfaz `ProveedorConsulta` y traduce su respuesta a un formato común (`nombres`, `apellidos`, `direccion`…). Agregar un proveedor nuevo no toca el resto del sistema.
 4. **Resultado:** se guarda o actualiza el cliente (sin borrar datos existentes ante respuestas parciales) y se registra en `consulta_externa`.
-5. **Límites:** tiempo máximo por llamada y cantidad de consultas por usuario y por minuto, para controlar el costo.
+5. **Límites:** 15 s por llamada y 10 consultas pagadas por usuario y por minuto (`CONSULTAS_POR_MINUTO`), para controlar el costo.
 
 ---
 
@@ -472,7 +474,7 @@ El sistema maneja datos personales (nombres, DNI, domicilios) protegidos por la 
 
 | Medida | Cómo |
 |---|---|
-| Autenticación | Usuario y contraseña; contraseñas con BCrypt; JWT firmado HS256. Fase 0: un token de 8 h. Fase 1: token de acceso corto (15 min) más token de renovación |
+| Autenticación | Usuario y contraseña; contraseñas con BCrypt; token de acceso JWT (HS256) de 15 min que la web renueva sola con un token de sesión (12 h, guardado solo como hash y rotado en cada uso; reusar uno viejo cierra todas las sesiones). Cerrar sesión, desactivar al usuario o restablecerle la clave revoca sus sesiones |
 | Autorización | Roles `ADMIN` y `OPERADOR`, revisados en cada endpoint |
 | Auditoría | Login, generación, descarga, edición de clientes y cambios de plantillas quedan en `auditoria` |
 | Secretos | Claves y tokens en variables de entorno o archivo `.env` fuera del repositorio; tokens de API cifrados en la base |
@@ -622,7 +624,7 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 |---|---|---|
 | **0. Fundaciones** ✅ | Esqueleto que compila y se instala | Monorepo; backend con login y salud; Flyway; frontend con login; Docker Compose; CI |
 | **1. MVP oficina** ✅ | Reemplazar la v1 en el uso diario | Clientes, consultas DNI/RUC, plantillas con participantes, generación DOCX/PDF, historial, usuarios |
-| **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real. Pendientes de la fase 1: token de renovación (hoy un token de 8 h) y límite de consultas por minuto |
+| **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real. |
 | **3. Portal de clientes** | Que el cliente final haga su trámite | Rol `CLIENTE`, registro, plantillas públicas, revisión por el operador antes de entregar, despliegue en internet con HTTPS |
 | **4. App móvil** | Lo mismo desde el celular | React Native sobre la misma API |
 

@@ -11,7 +11,8 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param jwtSecreto clave para firmar los tokens; mínimo 32 caracteres. Viene de la variable de entorno
  *     {@code JWT_SECRETO}, nunca del código.
- * @param duracionToken cuánto dura un token desde que se emite.
+ * @param duracionToken cuánto dura un token de acceso (corto: si se roba, sirve poco tiempo).
+ * @param duracionSesion cuánto se puede seguir renovando sin volver a escribir la contraseña.
  */
 @Validated
 @ConfigurationProperties("app.seguridad")
@@ -19,4 +20,5 @@ public record SeguridadProperties(
         @NotNull @Size(min = 32, message = "JWT_SECRETO debe tener al menos 32 caracteres")
         String jwtSecreto,
 
-        @NotNull Duration duracionToken) {}
+        @NotNull Duration duracionToken,
+        @NotNull Duration duracionSesion) {}

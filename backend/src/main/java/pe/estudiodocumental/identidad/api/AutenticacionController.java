@@ -37,7 +37,7 @@ class AutenticacionController {
     @PostMapping("/login")
     TokenResponse login(@Valid @RequestBody LoginRequest solicitud) {
         var emitido = autenticacion.iniciarSesion(solicitud.usuario(), solicitud.clave());
-        return new TokenResponse(emitido.token(), emitido.expiraEn(), UsuarioResponse.desde(emitido.usuario()));
+        return respuesta(emitido);
     }
 
     record CambiarClaveRequest(
@@ -46,6 +46,31 @@ class AutenticacionController {
 
             @NotBlank(message = "Escriba la contraseña nueva")
             String nueva) {}
+
+    record TokenSesionRequest(
+            @NotBlank(message = "Falta el token de sesión") String tokenSesion) {}
+
+    @Operation(
+            summary = "Renovar acceso",
+            description = "Cambia el token de sesión por un acceso nuevo, sin contraseña.")
+    @SecurityRequirements
+    @PostMapping("/renovar")
+    TokenResponse renovar(@Valid @RequestBody TokenSesionRequest s) {
+        return respuesta(autenticacion.renovar(s.tokenSesion()));
+    }
+
+    @Operation(summary = "Cerrar sesión", description = "Invalida el token de sesión de este navegador.")
+    @SecurityRequirements
+    @PostMapping("/salir")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void salir(@Valid @RequestBody TokenSesionRequest s) {
+        autenticacion.cerrarSesion(s.tokenSesion());
+    }
+
+    private static TokenResponse respuesta(AutenticacionService.TokenEmitido e) {
+        return new TokenResponse(
+                e.token(), e.expiraEn(), e.tokenSesion(), e.sesionExpiraEn(), UsuarioResponse.desde(e.usuario()));
+    }
 
     @Operation(summary = "Cambiar mi contraseña")
     @PutMapping("/clave")

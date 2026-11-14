@@ -42,6 +42,7 @@ public class ConsultaService {
     private final Map<Proveedor, ProveedorConsulta> proveedores;
 
     private final ApplicationEventPublisher eventos;
+    private final LimiteConsultas limite;
 
     public ConsultaService(
             ClienteService clientes,
@@ -49,12 +50,14 @@ public class ConsultaService {
             ConsultaExternaRepository registro,
             CifradoTokens cifrado,
             List<ProveedorConsulta> proveedores,
-            ApplicationEventPublisher eventos) {
+            ApplicationEventPublisher eventos,
+            LimiteConsultas limite) {
         this.clientes = clientes;
         this.credenciales = credenciales;
         this.registro = registro;
         this.cifrado = cifrado;
         this.eventos = eventos;
+        this.limite = limite;
         this.proveedores =
                 proveedores.stream().collect(Collectors.toMap(ProveedorConsulta::proveedor, Function.identity()));
     }
@@ -91,6 +94,7 @@ public class ConsultaService {
                     null,
                     "No está registrado y no hay credenciales de consulta configuradas. Complete los datos a mano.");
         }
+        limite.registrar(usuarioId);
         String ultimoError = Motivo.NO_ENCONTRADO.mensaje();
         for (CredencialApi credencial : activas) {
             ProveedorConsulta proveedor = proveedores.get(credencial.getProveedor());

@@ -1,7 +1,7 @@
 /**
  * Cliente HTTP único para hablar con el backend.
  *
- * - Agrega el token de sesión a cada petición.
+ * - Agrega el token de acceso a cada petición y lo renueva solo cuando vence.
  * - Convierte las respuestas de error (Problem Details, RFC 9457) en `ErrorApi`.
  */
 
@@ -28,33 +28,76 @@ export class ErrorApi extends Error {
 }
 
 let obtenerToken: () => string | null = () => null
+let obtenerTokenSesion: () => string | null = () => null
+let alRenovar: (sesion: unknown) => void = () => {}
 let alExpirarSesion: () => void = () => {}
+let renovacionEnCurso: Promise<string | null> | null = null
 
-/** Lo llama el proveedor de sesión para conectar el token con el cliente HTTP. */
+/** Lo llama el proveedor de sesión para conectar la sesión con el cliente HTTP. */
 export function configurarSesion(opciones: {
   obtenerToken: () => string | null
+  obtenerTokenSesion: () => string | null
+  alRenovar: (sesion: never) => void
   alExpirarSesion: () => void
 }) {
   obtenerToken = opciones.obtenerToken
+  obtenerTokenSesion = opciones.obtenerTokenSesion
+  alRenovar = opciones.alRenovar as (sesion: unknown) => void
   alExpirarSesion = opciones.alExpirarSesion
 }
 
-export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
-  const cabeceras = new Headers(opciones.headers)
-  if (opciones.body && !(opciones.body instanceof FormData)) {
-    cabeceras.set('Content-Type', 'application/json')
+/**
+ * Pide un token de acceso nuevo con el token de sesión. Si varias peticiones vencen a la vez, se hace una sola
+ * renovación y todas esperan la misma. Devuelve el token nuevo, o null si la sesión ya no sirve.
+ */
+function renovarAcceso(): Promise<string | null> {
+  const tokenSesion = obtenerTokenSesion()
+  if (!tokenSesion) return Promise.resolve(null)
+  renovacionEnCurso ??= fetch('/api/v1/auth/renovar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tokenSesion }),
+  })
+    .then(async (r) => {
+      if (!r.ok) return null
+      const sesion = (await r.json()) as { token: string }
+      alRenovar(sesion)
+      return sesion.token
+    })
+    .catch(() => null)
+    .finally(() => {
+      renovacionEnCurso = null
+    })
+  return renovacionEnCurso
+}
+
+/** fetch con el token de acceso; si venció, lo renueva una vez y repite la petición. */
+async function fetchAutenticado(ruta: string, opciones: RequestInit = {}): Promise<Response> {
+  const enviar = (token: string | null) => {
+    const cabeceras = new Headers(opciones.headers)
+    if (opciones.body && !(opciones.body instanceof FormData)) {
+      cabeceras.set('Content-Type', 'application/json')
+    }
+    if (token) cabeceras.set('Authorization', `Bearer ${token}`)
+    return fetch(`/api/v1${ruta}`, { ...opciones, headers: cabeceras })
   }
   const token = obtenerToken()
-  if (token) {
-    cabeceras.set('Authorization', `Bearer ${token}`)
-  }
-
-  const respuesta = await fetch(`/api/v1${ruta}`, { ...opciones, headers: cabeceras })
-
-  if (!respuesta.ok) {
-    if (respuesta.status === 401 && token) {
+  let respuesta = await enviar(token)
+  if (respuesta.status === 401 && token) {
+    const nuevo = await renovarAcceso()
+    if (nuevo) {
+      respuesta = await enviar(nuevo)
+    }
+    if (!nuevo || respuesta.status === 401) {
       alExpirarSesion()
     }
+  }
+  return respuesta
+}
+
+export async function api<T>(ruta: string, opciones: RequestInit = {}): Promise<T> {
+  const respuesta = await fetchAutenticado(ruta, opciones)
+  if (!respuesta.ok) {
     throw new ErrorApi(await leerProblema(respuesta))
   }
   if (respuesta.status === 204) {
@@ -75,10 +118,7 @@ export async function descargar(ruta: string, nombrePorDefecto: string) {
 
 /** Obtiene un archivo protegido como Blob (por ejemplo, para mostrar un PDF en pantalla). */
 export async function obtenerArchivo(ruta: string): Promise<{ contenido: Blob; nombre: string | null }> {
-  const token = obtenerToken()
-  const respuesta = await fetch(`/api/v1${ruta}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+  const respuesta = await fetchAutenticado(ruta)
   if (!respuesta.ok) {
     throw new ErrorApi(await leerProblema(respuesta))
   }

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { configurarSesion } from '../../api/cliente'
-import type { Sesion } from './api'
+import { cerrarSesionEnServidor, type Sesion } from './api'
 import { SesionContext } from './sesionContext'
 
 const CLAVE_ALMACEN = 'estudio-documental.sesion'
@@ -10,7 +10,8 @@ function leerSesionGuardada(): Sesion | null {
     const texto = localStorage.getItem(CLAVE_ALMACEN)
     if (!texto) return null
     const sesion = JSON.parse(texto) as Sesion
-    return new Date(sesion.expiraEn) > new Date() ? sesion : null
+    // Vale mientras se pueda renovar, aunque el token de acceso ya haya vencido
+    return sesion.tokenSesion && new Date(sesion.sesionExpiraEn) > new Date() ? sesion : null
   } catch {
     return null
   }
@@ -26,6 +27,8 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const cerrar = useCallback(() => {
+    const guardada = leerSesionGuardada()
+    if (guardada) cerrarSesionEnServidor(guardada.tokenSesion)
     localStorage.removeItem(CLAVE_ALMACEN)
     setSesion(null)
   }, [])
@@ -34,6 +37,8 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   // hijos ya tengan el token en su primer render. Es una asignación idempotente.
   configurarSesion({
     obtenerToken: () => sesion?.token ?? null,
+    obtenerTokenSesion: () => sesion?.tokenSesion ?? null,
+    alRenovar: iniciar,
     alExpirarSesion: cerrar,
   })
 

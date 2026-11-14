@@ -13,6 +13,7 @@ import pe.estudiodocumental.comun.error.ReglaNegocioException;
 import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.identidad.dominio.Rol;
 import pe.estudiodocumental.identidad.dominio.Usuario;
+import pe.estudiodocumental.identidad.infraestructura.SesionRepository;
 import pe.estudiodocumental.identidad.infraestructura.UsuarioRepository;
 
 /** Administración de usuarios (solo ADMIN). */
@@ -21,13 +22,18 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
+    private final SesionRepository sesiones;
 
     private final ApplicationEventPublisher eventos;
 
     public UsuarioService(
-            UsuarioRepository usuarios, PasswordEncoder passwordEncoder, ApplicationEventPublisher eventos) {
+            UsuarioRepository usuarios,
+            PasswordEncoder passwordEncoder,
+            SesionRepository sesiones,
+            ApplicationEventPublisher eventos) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
+        this.sesiones = sesiones;
         this.eventos = eventos;
     }
 
@@ -66,6 +72,9 @@ public class UsuarioService {
             throw new ReglaNegocioException("No puede quitarse el rol de administrador ni desactivarse a sí mismo.");
         }
         usuario.editar(nombre, rol, activo);
+        if (!activo) {
+            sesiones.revocarTodas(id);
+        }
         eventos.publishEvent(EventoAuditoria.de(
                 "USUARIO_EDITADO",
                 "usuario",
@@ -79,6 +88,7 @@ public class UsuarioService {
     public void restablecerClave(UUID id, String nueva) {
         Usuario usuario = obtener(id);
         usuario.cambiarClave(passwordEncoder.encode(PoliticaClave.validar(nueva)));
+        sesiones.revocarTodas(id);
         eventos.publishEvent(EventoAuditoria.de("CLAVE_RESTABLECIDA", "usuario", id, usuario.getNombreUsuario()));
     }
 

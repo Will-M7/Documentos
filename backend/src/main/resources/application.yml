@@ -29,7 +29,8 @@ app:
     jwt-secreto: ${JWT_SECRETO}
     # Cifra los tokens de Factiliza/APIsPERU guardados en la base. Si cambia, hay que volver a registrarlos.
     clave-maestra: ${APP_CLAVE_MAESTRA}
-    duracion-token: ${DURACION_TOKEN:8h}
+    duracion-token: ${DURACION_TOKEN:15m}
+    duracion-sesion: ${DURACION_SESION:12h}
   archivos:
     # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
     directorio: ${ARCHIVOS_DIR:./datos/archivos}
@@ -37,6 +38,9 @@ app:
     # Carpeta "dist" del frontend compilado. Si se indica, el backend sirve también la web en el mismo puerto
     # (instalación sin Docker). Vacío en desarrollo: la web la sirve Vite.
     directorio: ${WEB_DIR:}
+  consultas:
+    # Consultas pagadas (Factiliza/APIsPERU) que cada usuario puede hacer por minuto
+    limite-por-minuto: ${CONSULTAS_POR_MINUTO:10}
   admin-inicial:
     usuario: ${ADMIN_USUARIO:}
     clave: ${ADMIN_CLAVE:}

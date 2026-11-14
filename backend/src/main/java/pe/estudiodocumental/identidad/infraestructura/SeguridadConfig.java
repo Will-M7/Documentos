@@ -39,7 +39,8 @@ class SeguridadConfig {
                 // Sin cookies de sesión, por lo que CSRF no aplica
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/login")
+                .authorizeHttpRequests(auth -> auth.requestMatchers(
+                                HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/renovar", "/api/v1/auth/salir")
                         .permitAll()
                         .requestMatchers("/api/docs", "/api/docs/**", "/actuator/health", "/actuator/health/**")
                         .permitAll()
