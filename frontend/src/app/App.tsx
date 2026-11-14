@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { SesionProvider } from '../features/auth/SesionProvider'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { ClientesPage } from '../features/clientes/pages/ClientesPage'
+import { HistorialPage } from '../features/documentos/pages/HistorialPage'
+import { NuevoDocumentoPage } from '../features/documentos/pages/NuevoDocumentoPage'
 import { InicioPage } from '../features/inicio/pages/InicioPage'
 import { PlantillaDetallePage } from '../features/plantillas/pages/PlantillaDetallePage'
 import { PlantillasPage } from '../features/plantillas/pages/PlantillasPage'
@@ -32,6 +34,8 @@ export function App() {
               <Route element={<RutaProtegida />}>
                 <Route element={<LayoutPrincipal />}>
                   <Route index element={<InicioPage />} />
+                  <Route path="documentos/nuevo" element={<NuevoDocumentoPage />} />
+                  <Route path="historial" element={<HistorialPage />} />
                   <Route path="clientes" element={<ClientesPage />} />
                   <Route element={<RutaSoloAdmin />}>
                     <Route path="plantillas" element={<PlantillasPage />} />
