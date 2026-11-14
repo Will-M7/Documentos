@@ -12,7 +12,7 @@ Cada bloque se prueba por separado, en orden. Marque ✅ o anote lo que falló.
    mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
    ```
 
-   Al arrancar aplica solo las migraciones nuevas (V002 a V009). Si ya tenía el backend abierto, ciérrelo (Ctrl+C) y vuelva a abrirlo.
+   Al arrancar aplica solo las migraciones nuevas (V002 a V011). Si ya tenía el backend abierto, ciérrelo (Ctrl+C) y vuelva a abrirlo.
 3. Web (otra terminal):
 
    ```bash
@@ -121,6 +121,16 @@ npm test
 | 8.2 | Menú **Auditoría** | Aparecen, de la más reciente a la más antigua: “Descargó un documento”, “Generó un documento”, “Registró un cliente”, “Contraseña incorrecta”, con usuario y fecha |
 | 8.3 | Buscar el DNI del cliente o el n.º del documento | Solo los registros relacionados |
 | 8.4 | Ingresar como operador | No ve el menú Auditoría |
+
+## Bloque 14: Vista previa antes de generar
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 14.1 | Nuevo documento → completar todo → **Vista previa** | Se abre una ventana con el Word tal como quedará (montos en letras, fecha larga, sin `{{…}}`) |
+| 14.2 | Cerrar con **Volver a editar** → menú **Historial** | El documento **no** aparece: la vista previa no gasta número ni guarda nada |
+| 14.3 | Usar un DNI que no esté en Clientes → Vista previa → ir a **Clientes** | Esa persona **no** se registró todavía |
+| 14.4 | Vista previa sin completar Lugar | Mensaje “Complete «Lugar».” (mismas validaciones que al generar) |
+| 14.5 | Vista previa → **Generar documento** desde la ventana | “Documento n.º X generado”; ahora sí aparece en Historial y la persona en Clientes |
 
 ---
 

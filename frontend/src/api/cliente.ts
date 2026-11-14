@@ -117,8 +117,11 @@ export async function descargar(ruta: string, nombrePorDefecto: string) {
 }
 
 /** Obtiene un archivo protegido como Blob (por ejemplo, para mostrar un PDF en pantalla). */
-export async function obtenerArchivo(ruta: string): Promise<{ contenido: Blob; nombre: string | null }> {
-  const respuesta = await fetchAutenticado(ruta)
+export async function obtenerArchivo(
+  ruta: string,
+  opciones: RequestInit = {},
+): Promise<{ contenido: Blob; nombre: string | null }> {
+  const respuesta = await fetchAutenticado(ruta, opciones)
   if (!respuesta.ok) {
     throw new ErrorApi(await leerProblema(respuesta))
   }

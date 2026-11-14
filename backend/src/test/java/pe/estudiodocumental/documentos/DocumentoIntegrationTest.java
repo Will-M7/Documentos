@@ -113,6 +113,34 @@ class DocumentoIntegrationTest extends PruebaIntegracion {
         }
     }
 
+    @Test
+    void laVistaPreviaMuestraElWordSinGuardarNada() throws Exception {
+        String token = tokenOperador();
+        byte[] docx = mvc.perform(post("/api/v1/documentos/vista-previa")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pedido("41230009")))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+        assertThat(DocxDePrueba.texto(docx)).contains("Yo, ANA MARÍA QUISPE ROJAS, identificado con DNI N.º 41230009,");
+
+        // Ni el cliente ni el documento quedaron guardados
+        mvc.perform(get("/api/v1/clientes/documento/DNI/41230009").header("Authorization", bearer(token)))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/documentos").param("q", "41230009").header("Authorization", bearer(token)))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+
+        // Valida lo mismo que generar
+        mvc.perform(post("/api/v1/documentos/vista-previa")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"plantillaId":"%s","variables":{},"participantes":{}}""".formatted(plantillaId)))
+                .andExpect(status().isUnprocessableContent());
+    }
+
     private String pedido(String dni) {
         return """
                 {"plantillaId":"%s",

@@ -59,19 +59,27 @@ class DocumentoController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     DocumentoDetalle generar(@Valid @RequestBody GenerarRequest s, @AuthenticationPrincipal Jwt token) {
-        List<DatosParticipante> participantes = new ArrayList<>();
-        if (s.participantes() != null) {
-            s.participantes().forEach((clave, datos) -> {
-                try {
-                    participantes.add(new DatosParticipante(clave, datos.aDatos()));
-                } catch (ReglaNegocioException e) {
-                    throw new ReglaNegocioException("«%s»: %s".formatted(clave, e.getMessage()));
-                }
-            });
-        }
+        List<DatosParticipante> participantes = participantes(s);
         Documento documento = documentos.generar(
                 s.plantillaId(), s.titulo(), s.variables(), participantes, UUID.fromString(token.getSubject()));
         return detalle(documento);
+    }
+
+    @Operation(
+            summary = "Vista previa",
+            description = "Devuelve el Word tal como quedaría, sin guardar nada (sin número, historial ni clientes).")
+    @PostMapping("/vista-previa")
+    ResponseEntity<byte[]> vistaPrevia(@Valid @RequestBody GenerarRequest s) {
+        byte[] docx = documentos.vistaPrevia(s.plantillaId(), s.variables(), participantes(s));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(ArchivoService.MIME_DOCX))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline()
+                                .filename("vista-previa.docx")
+                                .build()
+                                .toString())
+                .body(docx);
     }
 
     @Operation(summary = "Historial", description = "Busca por título, plantilla, nombre o documento de identidad.")
@@ -115,6 +123,20 @@ class DocumentoController {
     @GetMapping("/{id}/pdf")
     ResponseEntity<byte[]> pdf(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean verEnLinea) {
         return archivo(documentos.archivo(id, true), verEnLinea);
+    }
+
+    private static List<DatosParticipante> participantes(GenerarRequest s) {
+        List<DatosParticipante> participantes = new ArrayList<>();
+        if (s.participantes() != null) {
+            s.participantes().forEach((clave, datos) -> {
+                try {
+                    participantes.add(new DatosParticipante(clave, datos.aDatos()));
+                } catch (ReglaNegocioException e) {
+                    throw new ReglaNegocioException("«%s»: %s".formatted(clave, e.getMessage()));
+                }
+            });
+        }
+        return participantes;
     }
 
     private DocumentoDetalle detalle(Documento d) {

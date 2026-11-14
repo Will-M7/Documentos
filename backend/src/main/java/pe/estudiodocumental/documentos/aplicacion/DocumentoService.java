@@ -89,21 +89,9 @@ public class DocumentoService {
         Map<String, String> ingresados = valoresIngresados == null ? Map.of() : valoresIngresados;
         List<Variable> variables = plantillas.variablesDe(plantilla);
         Map<String, String> valores = resolverVariables(variables, ingresados);
-        Map<String, Cliente> porParticipante = guardarParticipantes(plantilla, participantes);
-
-        Map<String, TipoVariable> tipos = new LinkedHashMap<>();
-        variables.forEach(v -> tipos.put(v.getClave(), v.getTipo()));
+        Map<String, Cliente> porParticipante = participantes(plantilla, participantes, true);
         Map<String, String> marcas = new LinkedHashMap<>();
-        var relleno = plantillas.rellenarVersionActual(plantillaId, marca -> {
-            String texto = marca.esDeParticipante()
-                    ? Formateador.formatear(
-                            CamposCliente.valor(porParticipante.get(marca.participante()), marca.campo()),
-                            null,
-                            marca.filtro())
-                    : Formateador.formatear(valores.get(marca.campo()), tipos.get(marca.campo()), marca.filtro());
-            marcas.put(marca.texto(), texto);
-            return texto;
-        });
+        var relleno = rellenar(plantillaId, variables, valores, porParticipante, marcas);
 
         String tituloFinal =
                 titulo != null && !titulo.isBlank() ? titulo.strip() : tituloPorDefecto(plantilla, porParticipante);
@@ -136,6 +124,46 @@ public class DocumentoService {
                 guardado.getId(),
                 "N.º %d · %s".formatted(guardado.getNumero(), guardado.getTitulo())));
         return guardado;
+    }
+
+    /**
+     * El Word tal como quedaría, sin guardar nada: no usa número correlativo, no entra al historial ni registra
+     * clientes. Aplica las mismas validaciones que {@link #generar}.
+     */
+    @Transactional(readOnly = true)
+    public byte[] vistaPrevia(
+            UUID plantillaId, Map<String, String> valoresIngresados, List<DatosParticipante> participantes) {
+        Plantilla plantilla = plantillas.obtener(plantillaId);
+        if (!plantilla.isActivo()) {
+            throw new ReglaNegocioException("La plantilla está desactivada.");
+        }
+        List<Variable> variables = plantillas.variablesDe(plantilla);
+        Map<String, String> valores =
+                resolverVariables(variables, valoresIngresados == null ? Map.of() : valoresIngresados);
+        Map<String, Cliente> porParticipante = participantes(plantilla, participantes, false);
+        return rellenar(plantillaId, variables, valores, porParticipante, new LinkedHashMap<>())
+                .docx();
+    }
+
+    /** Rellena la versión actual y anota en {@code marcas} el texto puesto en cada una. */
+    private PlantillaService.Relleno rellenar(
+            UUID plantillaId,
+            List<Variable> variables,
+            Map<String, String> valores,
+            Map<String, Cliente> porParticipante,
+            Map<String, String> marcas) {
+        Map<String, TipoVariable> tipos = new LinkedHashMap<>();
+        variables.forEach(v -> tipos.put(v.getClave(), v.getTipo()));
+        return plantillas.rellenarVersionActual(plantillaId, marca -> {
+            String texto = marca.esDeParticipante()
+                    ? Formateador.formatear(
+                            CamposCliente.valor(porParticipante.get(marca.participante()), marca.campo()),
+                            null,
+                            marca.filtro())
+                    : Formateador.formatear(valores.get(marca.campo()), tipos.get(marca.campo()), marca.filtro());
+            marcas.put(marca.texto(), texto);
+            return texto;
+        });
     }
 
     @Transactional(readOnly = true)
@@ -218,7 +246,11 @@ public class DocumentoService {
         return valores;
     }
 
-    private Map<String, Cliente> guardarParticipantes(Plantilla plantilla, List<DatosParticipante> enviados) {
+    /**
+     * Valida los participantes y los convierte en clientes. Con {@code guardar} se registran o completan en Clientes;
+     * sin él (vista previa) solo se arman en memoria.
+     */
+    private Map<String, Cliente> participantes(Plantilla plantilla, List<DatosParticipante> enviados, boolean guardar) {
         Map<String, DatosCliente> porClave = new LinkedHashMap<>();
         if (enviados != null) {
             enviados.forEach(p -> porClave.put(p.clave(), p.datos()));
@@ -236,7 +268,11 @@ public class DocumentoService {
                 throw new ReglaNegocioException("«%s» debe ser una empresa.".formatted(p.getEtiqueta()));
             }
             try {
-                resultado.put(p.getClave(), clientes.guardarOCompletar(datos, OrigenDatos.MANUAL));
+                resultado.put(
+                        p.getClave(),
+                        guardar
+                                ? clientes.guardarOCompletar(datos, OrigenDatos.MANUAL)
+                                : new Cliente(datos, OrigenDatos.MANUAL));
             } catch (ReglaNegocioException e) {
                 throw new ReglaNegocioException("«%s»: %s".formatted(p.getEtiqueta(), e.getMessage()));
             }

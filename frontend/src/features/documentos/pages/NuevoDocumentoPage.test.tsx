@@ -1,6 +1,13 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// El dibujo real del Word no corre en el entorno de pruebas: se simula
+vi.mock('docx-preview', () => ({
+  renderAsync: async (_: Blob, destino: HTMLElement) => {
+    destino.textContent = 'Contenido del Word simulado'
+  },
+}))
 import { abrirComoAdmin, paginaVacia, respuestaJson, simularApi } from '../../../test/utilidades'
 
 const plantilla = {
@@ -98,5 +105,48 @@ describe('Nuevo documento', () => {
         otorgante: { numeroDocumento: '41234567', nombres: 'Ana María', direccion: 'Av. Sol 123' },
       },
     })
+  })
+
+  it('la vista previa muestra el Word sin guardar y desde ahí se puede generar', async () => {
+    let previas = 0
+    let generados = 0
+    simularApi({
+      'GET /plantillas/p1': () => respuestaJson(200, plantilla),
+      'GET /documentos': () => respuestaJson(200, paginaVacia),
+      'POST /documentos/vista-previa': () => {
+        previas++
+        return new Response(new Blob(['PK-docx']), { status: 200 })
+      },
+      'POST /documentos': () => {
+        generados++
+        return respuestaJson(201, {
+          resumen: {
+            id: 'd2',
+            numero: 8,
+            titulo: 'Carta',
+            plantillaId: 'p1',
+            plantillaNombre: 'Carta poder simple',
+            usuarioNombre: 'Ana',
+            creadoEn: '2026-11-14T10:00:00Z',
+            tienePdf: false,
+            participantes: [],
+          },
+          variables: {},
+          marcas: {},
+          avisoPdf: null,
+        })
+      },
+    })
+    abrirComoAdmin('/documentos/nuevo?plantilla=p1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Vista previa' }))
+    const dialogo = await screen.findByRole('dialog')
+    expect(await within(dialogo).findByText('Contenido del Word simulado')).toBeInTheDocument()
+    expect(previas).toBe(1)
+    expect(generados).toBe(0)
+
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Generar documento' }))
+    expect(await screen.findByText('Documento n.º 8 generado')).toBeInTheDocument()
+    expect(generados).toBe(1)
   })
 })

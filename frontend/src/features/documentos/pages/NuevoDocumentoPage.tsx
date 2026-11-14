@@ -1,4 +1,5 @@
 import ArrowBack from '@mui/icons-material/ArrowBack'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import {
@@ -25,10 +26,17 @@ import {
   type PlantillaDetalle,
   type PlantillaResumen,
 } from '../../plantillas/api'
-import { generarDocumento, obtenerCliente, obtenerDocumento, type DocumentoDetalle } from '../api'
+import {
+  generarDocumento,
+  obtenerCliente,
+  obtenerDocumento,
+  vistaPrevia,
+  type DocumentoDetalle,
+} from '../api'
 import { AccionesDocumento } from '../components/AccionesDocumento'
 import { CampoVariable } from '../components/CampoVariable'
 import { ParticipanteCampos } from '../components/ParticipanteCampos'
+import { VistaPreviaDialog } from '../components/VistaPreviaDialog'
 import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
 
 /**
@@ -151,13 +159,16 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
   const [participantes, setParticipantes] = useState(iniciales.participantes)
   const [resultado, setResultado] = useState<DocumentoDetalle | null>(null)
 
+  const pedido = { plantillaId: plantilla.id, titulo, variables, participantes }
   const generar = useMutation({
-    mutationFn: () => generarDocumento({ plantillaId: plantilla.id, titulo, variables, participantes }),
+    mutationFn: () => generarDocumento(pedido),
     onSuccess: (documento) => {
+      previa.reset()
       setResultado(documento)
       window.scrollTo({ top: 0 })
     },
   })
+  const previa = useMutation({ mutationFn: () => vistaPrevia(pedido) })
 
   if (resultado) {
     return (
@@ -225,13 +236,30 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
 
           {generar.error && <Alert severity="error">{generar.error.message}</Alert>}
 
-          <Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<VisibilityOutlined />}
+              loading={previa.isPending}
+              onClick={() => previa.mutate()}
+            >
+              Vista previa
+            </Button>
             <Button type="submit" variant="contained" size="large" loading={generar.isPending}>
               Generar documento
             </Button>
           </Box>
         </Stack>
       </form>
+      <VistaPreviaDialog
+        docx={previa.data ?? null}
+        cargando={previa.isPending}
+        error={previa.error?.message ?? null}
+        generando={generar.isPending}
+        onCerrar={() => previa.reset()}
+        onGenerar={() => generar.mutate()}
+      />
     </>
   )
 }

@@ -40,6 +40,15 @@ export function generarDocumento(pedido: PedidoDocumento) {
   return api<DocumentoDetalle>('/documentos', { method: 'POST', body: JSON.stringify(pedido) })
 }
 
+/** El Word tal como quedaría, sin guardar nada. */
+export async function vistaPrevia(pedido: PedidoDocumento): Promise<Blob> {
+  const { contenido } = await obtenerArchivo('/documentos/vista-previa', {
+    method: 'POST',
+    body: JSON.stringify(pedido),
+  })
+  return contenido
+}
+
 export function buscarDocumentos(filtro: {
   q: string
   desde: string
