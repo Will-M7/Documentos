@@ -1,0 +1,58 @@
+# Sistema completo: base de datos + backend + web.
+#
+#   Todo:                 docker compose --env-file .env up -d --build
+#   Solo la base (dev):   docker compose --env-file .env up -d db
+#
+# Las variables vienen de infra/.env (copiar de .env.example).
+name: estudio-documental
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NOMBRE:-estudio_documental}
+      POSTGRES_USER: ${DB_USUARIO:?Defina DB_USUARIO en .env}
+      POSTGRES_PASSWORD: ${DB_CLAVE:?Defina DB_CLAVE en .env}
+    volumes:
+      - datos-db:/var/lib/postgresql/data
+    # Solo accesible desde esta PC (para desarrollo y respaldos), no desde la red
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${DB_NOMBRE:-estudio_documental}
+      DB_USUARIO: ${DB_USUARIO}
+      DB_CLAVE: ${DB_CLAVE}
+      JWT_SECRETO: ${JWT_SECRETO:?Defina JWT_SECRETO en .env}
+      DURACION_TOKEN: ${DURACION_TOKEN:-8h}
+      ADMIN_USUARIO: ${ADMIN_USUARIO:-}
+      ADMIN_CLAVE: ${ADMIN_CLAVE:-}
+      ADMIN_NOMBRE: ${ADMIN_NOMBRE:-Administrador}
+    volumes:
+      - archivos:/app/datos
+    # Sin puertos publicados: solo la web (nginx) habla con el backend
+
+  web:
+    build: ../frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    # Las PCs de la oficina entran por http://<esta-pc>:PUERTO_WEB
+    ports:
+      - "${PUERTO_WEB:-8080}:80"
+
+volumes:
+  datos-db:
+  archivos:

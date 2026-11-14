@@ -1,0 +1,14 @@
+# La conexión real la provee Testcontainers (PostgresDePrueba); estos valores solo evitan
+# que falten las variables de entorno obligatorias.
+spring:
+  datasource:
+    username: no-usado
+    password: no-usado
+
+app:
+  seguridad:
+    jwt-secreto: clave-de-pruebas-automaticas-de-32-caracteres-o-mas
+  admin-inicial:
+    usuario: admin
+    clave: clave-de-prueba-123
+    nombre: Admin de Prueba

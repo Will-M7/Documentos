@@ -1,7 +1,7 @@
 # Arquitectura — Estudio Documental v2
 
-> **Estado:** propuesta para revisión · **Fecha:** 14 de noviembre de 2026
-> **Reemplaza a:** la aplicación de escritorio JavaFX + SQLite (v1, descrita en [`CONTEXTO.md`](../CONTEXTO.md)).
+> **Estado:** fase 0 implementada (esqueleto) · **Última actualización:** 14 de noviembre de 2026
+> **Reemplaza a:** la aplicación de escritorio JavaFX + SQLite (v1), conservada en la rama `v1` (ver su `CONTEXTO.md`).
 
 Este documento define cómo se va a construir la nueva versión: qué tecnologías se usan y por qué, cómo se organiza el código, cómo es la base de datos y en qué orden se construye. Es la referencia para tomar decisiones; si algo cambia, se actualiza aquí primero.
 
@@ -78,7 +78,7 @@ Cada decisión indica la alternativa descartada y el motivo, para no volver a di
 |---|---|---|---|
 | D1 | **Aplicación web con API** (backend + navegador) | Escritorio JavaFX (v1) | Varias PCs comparten datos; el mismo backend sirve después al portal y a la app móvil |
 | D2 | **Monolito modular** (un solo backend dividido en módulos) | Microservicios | Un equipo pequeño y una sola oficina no justifican la complejidad operativa; los módulos se pueden separar luego si hiciera falta |
-| D3 | **Java 21 + Spring Boot 3** | Node.js, Python | Experiencia previa del equipo en Java; Apache POI es la librería más completa para DOCX; Spring cubre seguridad, validación y datos |
+| D3 | **Java 21 + Spring Boot 4** | Node.js, Python | Experiencia previa del equipo en Java; Apache POI es la librería más completa para DOCX; Spring cubre seguridad, validación y datos |
 | D4 | **PostgreSQL** | SQLite (v1), MySQL | SQLite no admite bien varios usuarios simultáneos ni un servidor; PostgreSQL es gratuito, corre igual en la oficina y en la nube, y tiene `jsonb` para datos flexibles |
 | D5 | **Migraciones con Flyway** | Crear tablas desde el código (v1) | Cada cambio de la base queda versionado, revisable y se aplica igual en todas las instalaciones |
 | D6 | **Plantillas diseñadas en Microsoft Word** | Editor propio dentro de la app (v1) | Formato 100 % fiel y mucho menos código que mantener; el editor propio era la parte más compleja y frágil de la v1 |
@@ -126,25 +126,27 @@ flowchart TB
 
 ## 5. Stack tecnológico
 
-Las versiones exactas se fijan al crear el esqueleto (última estable de cada una) y quedan registradas en `pom.xml` y `package.json`.
+Versiones fijadas en la fase 0 (noviembre de 2026). Las exactas están en `backend/pom.xml` y `frontend/package.json`.
 
 | Capa | Tecnología | Uso |
 |---|---|---|
 | Lenguaje backend | Java 21 (LTS) | |
-| Framework | Spring Boot 3: Web, Validation, Security, Data JPA, Actuator | API, validación, seguridad, acceso a datos, salud del sistema |
-| Base de datos | PostgreSQL 16+ | Datos del sistema |
+| Framework | Spring Boot 4.1: Web MVC, Validation, Security (OAuth2 Resource Server para JWT), Data JPA, Actuator | API, validación, seguridad, acceso a datos, salud del sistema |
+| Base de datos | PostgreSQL 17 | Datos del sistema |
 | Migraciones | Flyway | Versionado de la base |
-| Mapeo DTO ↔ entidad | MapStruct | Conversión sin código repetitivo |
 | Documentos | Apache POI (`poi-ooxml`) | Leer plantillas y reemplazar variables |
 | PDF | LibreOffice headless (`soffice --convert-to pdf`) | Conversión fiel |
-| Documentación API | springdoc-openapi | Swagger UI en `/api/docs` |
+| Documentación API | springdoc-openapi 3 | Swagger UI en `/api/docs` |
+| Formato backend | Spotless (Palantir Java Format) | `./mvnw spotless:apply` |
 | Pruebas backend | JUnit 5, AssertJ, Testcontainers (PostgreSQL real), MockMvc | |
 | Lenguaje frontend | TypeScript | |
-| Framework web | React + Vite | |
-| UI | MUI (Material UI) | Componentes listos y accesibles |
-| Datos en el frontend | TanStack Query + cliente generado desde OpenAPI | Llamadas tipadas a la API |
+| Framework web | React 19 + Vite 8 | |
+| UI | MUI 9 (Material UI) | Componentes listos y accesibles |
+| Rutas | React Router | Navegación y rutas protegidas |
+| Datos en el frontend | TanStack Query + cliente HTTP propio (`src/api/cliente.ts`) | Llamadas a la API; en la fase 1 se generarán los tipos desde OpenAPI |
 | Formularios | React Hook Form + Zod | Formularios y validación |
-| Pruebas frontend | Vitest, Testing Library, Playwright (E2E) | |
+| Pruebas frontend | Vitest, Testing Library; Playwright (E2E) desde la fase 1 | |
+| Calidad frontend | oxlint + Prettier | Revisión y formato automáticos |
 | Infraestructura | Docker Compose | Instalación local |
 | CI | GitHub Actions | Compilar y probar cada PR |
 
@@ -210,7 +212,8 @@ clientes/
 
 ```
 POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
+GET    /api/v1/auth/yo                   Usuario dueño del token
+POST   /api/v1/auth/refresh              (fase 1)
 
 GET    /api/v1/clientes?q=...                Búsqueda por nombre o documento
 POST   /api/v1/clientes
@@ -249,7 +252,6 @@ POST   /api/v1/usuarios                      Solo ADMIN
 ```mermaid
 erDiagram
     usuario ||--o{ documento : genera
-    usuario }o--|| rol : tiene
     plantilla ||--o{ plantilla_version : tiene
     plantilla }o--o| categoria : pertenece
     plantilla ||--o{ participante : define
@@ -267,12 +269,8 @@ erDiagram
         text usuario UK
         text nombre
         text hash_clave
-        uuid rol_id FK
+        text rol
         bool activo
-    }
-    rol {
-        uuid id PK
-        text codigo UK
     }
     cliente {
         uuid id PK
@@ -452,7 +450,7 @@ El sistema maneja datos personales (nombres, DNI, domicilios) protegidos por la 
 
 | Medida | Cómo |
 |---|---|
-| Autenticación | Usuario y contraseña; contraseñas con BCrypt; JWT de acceso corto (15 min) y de renovación (8 h) |
+| Autenticación | Usuario y contraseña; contraseñas con BCrypt; JWT firmado HS256. Fase 0: un token de 8 h. Fase 1: token de acceso corto (15 min) más token de renovación |
 | Autorización | Roles `ADMIN` y `OPERADOR`, revisados en cada endpoint |
 | Auditoría | Login, generación, descarga, edición de clientes y cambios de plantillas quedan en `auditoria` |
 | Secretos | Claves y tokens en variables de entorno o archivo `.env` fuera del repositorio; tokens de API cifrados en la base |
@@ -483,15 +481,16 @@ El sistema maneja datos personales (nombres, DNI, domicilios) protegidos por la 
 
 ```
 frontend/src/
-├── app/            Rutas, layout, proveedores (tema, sesión, query client)
-├── api/            Cliente generado desde OpenAPI (no se edita a mano)
-├── features/       Una carpeta por módulo: clientes/, plantillas/, documentos/...
-│   └── clientes/
-│       ├── components/
-│       ├── hooks/      useClientes, useCrearCliente...
-│       └── pages/
+├── main.tsx        Punto de entrada
+├── app/            App (proveedores), rutas, layout, tema, ruta protegida
+├── api/            Cliente HTTP único (token y errores)
+├── features/       Una carpeta por módulo: auth/, clientes/, plantillas/, documentos/...
+│   └── auth/
+│       ├── api.ts          Llamadas al backend de este módulo
+│       ├── components/     (cuando haga falta)
+│       └── pages/          Pantallas
 ├── components/     Componentes compartidos
-└── lib/            Utilidades
+└── test/           Configuración de pruebas
 ```
 
 **Reglas:** el frontend no contiene reglas de negocio (las valida el backend); todo texto visible en español; el diseño debe funcionar en pantallas de 1366×768, que son comunes en oficinas.
@@ -504,22 +503,25 @@ Un solo repositorio (monorepo) con todo:
 
 ```
 /
-├── backend/                 Spring Boot (Maven)
-├── frontend/                React (Vite)
+├── backend/                 Spring Boot (Maven) · Dockerfile
+│   └── src/main/java/pe/estudiodocumental/
+│       ├── comun/           Errores, configuración y clases base compartidas
+│       ├── identidad/       Usuarios y login (api/ aplicacion/ dominio/ infraestructura/)
+│       └── clientes/ plantillas/ variables/ documentos/ consultas/ archivos/ auditoria/
+├── frontend/                React (Vite) · Dockerfile · nginx.conf
 ├── infra/
-│   ├── docker-compose.yml   PostgreSQL + backend + frontend
+│   ├── docker-compose.yml   PostgreSQL + backend + web
 │   └── .env.example         Variables de entorno de ejemplo (sin secretos)
 ├── docs/
 │   ├── ARQUITECTURA.md      Este documento
-│   ├── decisiones/          Una nota por decisión nueva (ADR)
-│   ├── api.md               Guía de uso de la API
-│   └── instalacion.md       Instalación en la oficina paso a paso
-├── scripts/                 Respaldo, restauración, migración desde la v1
+│   └── DESARROLLO.md        Cómo levantar y trabajar en el proyecto
 ├── .github/workflows/       CI
-└── README.md                Cómo empezar en 5 minutos
+└── README.md                Cómo empezar
+
+Se agregarán cuando hagan falta: docs/decisiones/ (una nota por decisión nueva), docs/instalacion.md (fase 2) y scripts/ (respaldo, restauración, migración desde la v1).
 ```
 
-La v1 (JavaFX) se conserva en una rama `v1` hasta que la v2 la reemplace en la oficina.
+La v1 (JavaFX) se conserva en la rama `v1` hasta que la v2 la reemplace en la oficina; de ahí se toma el código a reutilizar ([sección 17](#17-qué-se-reutiliza-de-la-v1)).
 
 ---
 
@@ -528,7 +530,8 @@ La v1 (JavaFX) se conserva en una rama `v1` hasta que la v2 la reemplace en la o
 **PC servidor:** una de las PCs de la oficina, siempre encendida en horario de atención. Requisitos mínimos sugeridos: 8 GB de RAM, SSD y Windows 10/11 con Docker Desktop (o Linux).
 
 ```
-docker compose up -d     # PostgreSQL + backend (con LibreOffice) + frontend
+cd infra
+docker compose --env-file .env up -d --build    # PostgreSQL + backend + web
 ```
 
 - Las demás PCs entran por el navegador a `http://<nombre-del-servidor>:8080`.
@@ -570,10 +573,10 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 **Estilo**
 
 - Backend: Spotless (formato automático) y nombres de dominio en español; términos técnicos en inglés solo cuando son estándar (`Controller`, `Repository`, `Service`).
-- Frontend: ESLint + Prettier.
+- Frontend: oxlint + Prettier.
 - El código de cada módulo debe poder leerse sin abrir otros.
 
-**Definición de terminado:** código revisado, pruebas pasando, migraciones incluidas, documentación actualizada (este archivo, `api.md` o `instalacion.md`) si el cambio lo requiere.
+**Definición de terminado:** código revisado, pruebas pasando, migraciones incluidas, documentación actualizada (este archivo o `DESARROLLO.md`) si el cambio lo requiere.
 
 ---
 
@@ -595,7 +598,7 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 
 | Fase | Objetivo | Entregables |
 |---|---|---|
-| **0. Fundaciones** | Esqueleto que compila y se instala | Monorepo; backend con login y salud; Flyway; frontend con login; Docker Compose; CI |
+| **0. Fundaciones** ✅ | Esqueleto que compila y se instala | Monorepo; backend con login y salud; Flyway; frontend con login; Docker Compose; CI |
 | **1. MVP oficina** | Reemplazar la v1 en el uso diario | Clientes, consultas DNI/RUC, plantillas con participantes, generación DOCX/PDF, historial, usuarios |
 | **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real |
 | **3. Portal de clientes** | Que el cliente final haga su trámite | Rol `CLIENTE`, registro, plantillas públicas, revisión por el operador antes de entregar, despliegue en internet con HTTPS |

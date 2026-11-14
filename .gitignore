@@ -1,104 +1,40 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-
-# Datos y documentos locales del usuario
-*.db
-*.db-*
-*.sqlite
-*.sqlite3
-*.sqlite-*
-*.sqlite3-*
-*.sqlite-wal
-*.sqlite-shm
-*.sqlite3-wal
-*.sqlite3-shm
-*.docx
-*.doc
-*.odt
-*.rtf
-*.pdf
-*.zip
-*.bak
-*.backup
-*.dbak
-*.dsbk
-.visual-backup/
-
-# Credenciales y configuración privada
+# --- Secretos y configuración local (NUNCA subir) ---
 .env
 .env.*
 !.env.example
 *.key
-*.secret
-*.token
 *.pem
 *.p12
 *.pfx
 *.jks
-*credentials*
-*secrets*
-*factiliza*token*
-*.local.properties
-application-*.properties
-!application-example.properties
+*.secret
+
+# --- Backend (Java / Maven) ---
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# --- Frontend (Node / Vite) ---
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# --- Datos y archivos generados en ejecución ---
+/datos/
+/respaldos/
+*.db
+*.sqlite*
+*.dump
+
+# --- Logs y temporales ---
 *.log
-.DS_Store
-/data/
-/documents/
-/backups/
-/exports/
-/installer/
-
-# Salidas de compilación y distribución
-target/
-build/
-dist/
-out/
-*.class
-*.exe
-*.msi
-*.msix
-*.app
-*.dmg
-*.deb
-*.rpm
-*.jar
-!gradle/wrapper/gradle-wrapper.jar
-
-# Temporales
 *.tmp
-*.temp
-*.swp
-*.swo
 *~
+
+# --- Editores y sistema operativo ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db

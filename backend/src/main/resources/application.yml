@@ -1,0 +1,46 @@
+# Configuración base. Los valores sensibles vienen SIEMPRE de variables de entorno.
+# Para desarrollo use el perfil "local" (application-local.yml).
+spring:
+  application:
+    name: estudio-documental-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/estudio_documental}
+    username: ${DB_USUARIO}
+    password: ${DB_CLAVE}
+  jpa:
+    # El esquema lo crea Flyway; Hibernate solo valida que las entidades coincidan
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+server:
+  port: ${PUERTO:8080}
+  error:
+    include-stacktrace: never
+
+app:
+  seguridad:
+    jwt-secreto: ${JWT_SECRETO}
+    duracion-token: ${DURACION_TOKEN:8h}
+  admin-inicial:
+    usuario: ${ADMIN_USUARIO:}
+    clave: ${ADMIN_CLAVE:}
+    nombre: ${ADMIN_NOMBRE:Administrador}
+
+springdoc:
+  api-docs:
+    path: /api/docs/openapi.json
+  swagger-ui:
+    path: /api/docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
