@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import pe.estudiodocumental.comun.persistencia.EntidadBase;
 
@@ -29,6 +31,18 @@ public class Usuario extends EntidadBase {
     @Column(nullable = false)
     private boolean activo = true;
 
+    @Column(name = "intentos_fallidos", nullable = false)
+    private int intentosFallidos;
+
+    @Column(name = "bloqueado_hasta")
+    private Instant bloqueadoHasta;
+
+    /** Intentos fallidos seguidos que bloquean el usuario. */
+    public static final int MAXIMO_INTENTOS = 5;
+
+    /** Cuánto dura el bloqueo. */
+    public static final Duration DURACION_BLOQUEO = Duration.ofMinutes(15);
+
     protected Usuario() {
         // Requerido por JPA
     }
@@ -38,6 +52,41 @@ public class Usuario extends EntidadBase {
         this.nombre = nombre.strip();
         this.hashClave = hashClave;
         this.rol = rol;
+    }
+
+    public void editar(String nombre, Rol rol, boolean activo) {
+        if (nombre != null && !nombre.isBlank()) {
+            this.nombre = nombre.strip();
+        }
+        this.rol = rol;
+        this.activo = activo;
+    }
+
+    public void cambiarClave(String nuevoHash) {
+        this.hashClave = nuevoHash;
+        desbloquear();
+    }
+
+    public boolean estaBloqueado(Instant ahora) {
+        return bloqueadoHasta != null && bloqueadoHasta.isAfter(ahora);
+    }
+
+    /** Registra un intento fallido; al llegar al máximo, bloquea el usuario un tiempo. */
+    public void registrarIntentoFallido(Instant ahora) {
+        intentosFallidos++;
+        if (intentosFallidos >= MAXIMO_INTENTOS) {
+            bloqueadoHasta = ahora.plus(DURACION_BLOQUEO);
+            intentosFallidos = 0;
+        }
+    }
+
+    public void desbloquear() {
+        intentosFallidos = 0;
+        bloqueadoHasta = null;
+    }
+
+    public Instant getBloqueadoHasta() {
+        return bloqueadoHasta;
     }
 
     /** Los nombres de usuario no distinguen mayúsculas ni espacios exteriores. */

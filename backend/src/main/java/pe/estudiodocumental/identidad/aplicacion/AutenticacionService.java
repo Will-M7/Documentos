@@ -1,5 +1,6 @@
 package pe.estudiodocumental.identidad.aplicacion;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.estudiodocumental.comun.error.NoAutenticadoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
+import pe.estudiodocumental.comun.error.ReglaNegocioException;
 import pe.estudiodocumental.identidad.dominio.Usuario;
 import pe.estudiodocumental.identidad.infraestructura.SeguridadProperties;
 import pe.estudiodocumental.identidad.infraestructura.UsuarioRepository;
@@ -40,13 +42,39 @@ public class AutenticacionService {
         this.propiedades = propiedades;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Tras {@link Usuario#MAXIMO_INTENTOS} contraseñas incorrectas seguidas, el usuario queda bloqueado
+     * {@link Usuario#DURACION_BLOQUEO}. El contador se guarda aunque el ingreso falle.
+     */
+    @Transactional(noRollbackFor = NoAutenticadoException.class)
     public TokenEmitido iniciarSesion(String nombreUsuario, String clave) {
+        Instant ahora = Instant.now();
         Usuario usuario = usuarios.findByNombreUsuario(Usuario.normalizar(nombreUsuario))
                 .filter(Usuario::isActivo)
-                .filter(u -> passwordEncoder.matches(clave, u.getHashClave()))
                 .orElseThrow(() -> new NoAutenticadoException(CREDENCIALES_INVALIDAS));
+        if (usuario.estaBloqueado(ahora)) {
+            long minutos = Math.max(
+                    1, Duration.between(ahora, usuario.getBloqueadoHasta()).toMinutes() + 1);
+            throw new NoAutenticadoException(
+                    "Usuario bloqueado por varios intentos fallidos. Intente de nuevo en %d minutos."
+                            .formatted(minutos));
+        }
+        if (!passwordEncoder.matches(clave, usuario.getHashClave())) {
+            usuario.registrarIntentoFallido(ahora);
+            throw new NoAutenticadoException(CREDENCIALES_INVALIDAS);
+        }
+        usuario.desbloquear();
         return emitirToken(usuario);
+    }
+
+    /** El propio usuario cambia su contraseña indicando la actual. */
+    @Transactional
+    public void cambiarMiClave(UUID id, String actual, String nueva) {
+        Usuario usuario = usuarioActual(id);
+        if (!passwordEncoder.matches(actual, usuario.getHashClave())) {
+            throw new ReglaNegocioException("La contraseña actual no es correcta.");
+        }
+        usuario.cambiarClave(passwordEncoder.encode(PoliticaClave.validar(nueva)));
     }
 
     @Transactional(readOnly = true)

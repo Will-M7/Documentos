@@ -10,6 +10,7 @@ import { NuevoDocumentoPage } from '../features/documentos/pages/NuevoDocumentoP
 import { InicioPage } from '../features/inicio/pages/InicioPage'
 import { PlantillaDetallePage } from '../features/plantillas/pages/PlantillaDetallePage'
 import { PlantillasPage } from '../features/plantillas/pages/PlantillasPage'
+import { UsuariosPage } from '../features/usuarios/pages/UsuariosPage'
 import { VariablesPage } from '../features/variables/pages/VariablesPage'
 import { LayoutPrincipal } from './LayoutPrincipal'
 import { RutaProtegida } from './RutaProtegida'
@@ -42,6 +43,7 @@ export function App() {
                     <Route path="plantillas" element={<PlantillasPage />} />
                     <Route path="plantillas/:id" element={<PlantillaDetallePage />} />
                     <Route path="variables" element={<VariablesPage />} />
+                    <Route path="usuarios" element={<UsuariosPage />} />
                     <Route path="configuracion" element={<ConfiguracionPage />} />
                   </Route>
                 </Route>

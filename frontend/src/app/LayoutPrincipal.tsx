@@ -2,6 +2,7 @@ import DataObjectOutlined from '@mui/icons-material/DataObjectOutlined'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import HomeOutlined from '@mui/icons-material/HomeOutlined'
+import KeyOutlined from '@mui/icons-material/KeyOutlined'
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined'
 import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
@@ -21,9 +22,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useSesion } from '../features/auth/sesionContext'
+import { CambiarClaveDialog } from '../features/usuarios/components/CambiarClaveDialog'
 
 const ANCHO_MENU = 240
 
@@ -45,13 +47,14 @@ const ATENCION: Opcion[] = [
 const ADMINISTRACION: Opcion[] = [
   { ruta: '/plantillas', texto: 'Plantillas', icono: <SnippetFolderOutlined />, disponible: true },
   { ruta: '/variables', texto: 'Variables', icono: <DataObjectOutlined />, disponible: true },
-  { ruta: '/usuarios', texto: 'Usuarios', icono: <ManageAccountsOutlined />, disponible: false },
+  { ruta: '/usuarios', texto: 'Usuarios', icono: <ManageAccountsOutlined />, disponible: true },
   { ruta: '/configuracion', texto: 'Configuración', icono: <SettingsOutlined />, disponible: true },
 ]
 
 export function LayoutPrincipal() {
   const { sesion, cerrar } = useSesion()
   const esAdmin = sesion?.usuario.rol === 'ADMIN'
+  const [cambiandoClave, setCambiandoClave] = useState(false)
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -61,6 +64,15 @@ export function LayoutPrincipal() {
             Estudio Documental
           </Typography>
           <Typography sx={{ mr: 1 }}>{sesion?.usuario.nombre}</Typography>
+          <Tooltip title="Cambiar mi contraseña">
+            <IconButton
+              color="inherit"
+              onClick={() => setCambiandoClave(true)}
+              aria-label="Cambiar mi contraseña"
+            >
+              <KeyOutlined />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Cerrar sesión">
             <IconButton color="inherit" onClick={cerrar} aria-label="Cerrar sesión">
               <LogoutOutlined />
@@ -93,6 +105,7 @@ export function LayoutPrincipal() {
         <Toolbar />
         <Outlet />
       </Box>
+      <CambiarClaveDialog abierto={cambiandoClave} onCerrar={() => setCambiandoClave(false)} />
     </Box>
   )
 }
