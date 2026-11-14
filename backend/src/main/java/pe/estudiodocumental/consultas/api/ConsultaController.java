@@ -63,20 +63,24 @@ class ConsultaController {
     ResumenCredenciales listar() {
         return new ResumenCredenciales(
                 credenciales.consultasDelMes(),
-                credenciales.listar().stream().map(CredencialResponse::desde).toList());
+                credenciales.listar().stream()
+                        .map(c -> CredencialResponse.desde(c, credenciales.usadasEsteMes(c.getId())))
+                        .toList());
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/credenciales")
     @ResponseStatus(HttpStatus.CREATED)
     CredencialResponse crear(@Valid @RequestBody CrearCredencialRequest s) {
-        return CredencialResponse.desde(credenciales.crear(s.proveedor(), s.nombre(), s.token(), s.prioridad()));
+        var c = credenciales.crear(s.proveedor(), s.nombre(), s.token(), s.prioridad(), s.limiteMensual());
+        return CredencialResponse.desde(c, credenciales.usadasEsteMes(c.getId()));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/credenciales/{id}")
     CredencialResponse editar(@PathVariable UUID id, @Valid @RequestBody EditarCredencialRequest s) {
-        return CredencialResponse.desde(credenciales.editar(id, s.nombre(), s.token(), s.prioridad(), s.activo()));
+        var c = credenciales.editar(id, s.nombre(), s.token(), s.prioridad(), s.activo(), s.limiteMensual());
+        return CredencialResponse.desde(c, credenciales.usadasEsteMes(id));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

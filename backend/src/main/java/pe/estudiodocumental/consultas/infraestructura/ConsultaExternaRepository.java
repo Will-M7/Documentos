@@ -10,4 +10,7 @@ public interface ConsultaExternaRepository extends JpaRepository<ConsultaExterna
 
     @Query("select count(c) from ConsultaExterna c where c.creadoEn >= :desde")
     long contarDesde(Instant desde);
+
+    @Query("select count(c) from ConsultaExterna c where c.credencialId = :credencialId and c.creadoEn >= :desde")
+    long contarDeCredencialDesde(UUID credencialId, Instant desde);
 }

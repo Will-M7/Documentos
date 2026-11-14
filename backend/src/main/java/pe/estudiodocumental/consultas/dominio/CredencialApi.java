@@ -38,6 +38,12 @@ public class CredencialApi extends EntidadBase {
     @Column(name = "ultimo_uso")
     private Instant ultimoUso;
 
+    @Column(name = "limite_mensual")
+    private Integer limiteMensual;
+
+    @Column(name = "agotada_hasta")
+    private Instant agotadaHasta;
+
     protected CredencialApi() {
         // Requerido por JPA
     }
@@ -53,6 +59,21 @@ public class CredencialApi extends EntidadBase {
         this.nombre = nombre == null || nombre.isBlank() ? proveedor.nombre() : nombre.strip();
         this.prioridad = prioridad;
         this.activo = activo;
+    }
+
+    /** Consultas que permite el plan por mes; null = sin límite. Cambiarlo quita el estado "agotada". */
+    public void cambiarLimiteMensual(Integer limiteMensual) {
+        this.limiteMensual = limiteMensual == null || limiteMensual <= 0 ? null : limiteMensual;
+        this.agotadaHasta = null;
+    }
+
+    /** El proveedor dijo que se acabó el cupo: no se usa hasta esa fecha. */
+    public void marcarAgotada(Instant hasta) {
+        this.agotadaHasta = hasta;
+    }
+
+    public boolean estaAgotada(Instant ahora) {
+        return agotadaHasta != null && agotadaHasta.isAfter(ahora);
     }
 
     public void cambiarToken(String tokenCifrado, String tokenFinal) {
@@ -95,5 +116,13 @@ public class CredencialApi extends EntidadBase {
 
     public Instant getUltimoUso() {
         return ultimoUso;
+    }
+
+    public Integer getLimiteMensual() {
+        return limiteMensual;
+    }
+
+    public Instant getAgotadaHasta() {
+        return agotadaHasta;
     }
 }

@@ -84,27 +84,30 @@ npm test
 | 5.9 | Menú **Inicio** | “Últimos documentos” muestra el generado |
 | 5.10 | *(Opcional)* Instalar LibreOffice (libreoffice.org), reiniciar el backend y generar otro | Ahora aparecen **Ver PDF** y **Descargar PDF**, idénticos al Word |
 
-## Bloque 6: Consultas DNI/RUC (solo administrador configura)
+## Bloque 6: Consultas DNI/RUC con APIs gratuitas (solo administrador configura)
+
+**Antes:** cree una cuenta gratis en https://decolecta.com/profile (100 consultas al mes) y copie su token. Si quiere probar el cambio automático entre APIs, cree también una cuenta gratis en https://apisperu.com.
 
 | # | Paso | Resultado esperado |
 |---|---|---|
-| 6.1 | Menú **Configuración** | Estado del PDF y “Consultas pagadas este mes: 0” |
-| 6.2 | **Agregar credencial** → Factiliza, pegar el token real | Se muestra solo el final del token (`…abcd`) |
-| 6.3 | Nuevo documento → DNI de una persona real que **no** esté en Clientes → Buscar | “Datos obtenidos de Factiliza y guardados en Clientes”; el contador del mes sube a 1 |
-| 6.4 | Buscar el mismo DNI otra vez | “Datos cargados desde Clientes (sin costo)”; el contador no sube |
-| 6.5 | Pulsar **Consultar de nuevo** | Vuelve a preguntar a Factiliza (contador +1) |
-| 6.6 | Editar la credencial y pegar un token falso | Al buscar: “El proveedor rechazó el token…” |
-| 6.7 | En pgAdmin: tabla `credencial_api` | El token está cifrado (texto ilegible), nunca en claro |
-| 6.8 | Menú **Clientes** → Nuevo cliente → DNI real no registrado → **Buscar** | Se completan nombres y apellidos y el formulario pasa a “Editar cliente”; agregar teléfono y Guardar |
-
-Sin token real se puede probar todo menos 6.3 a 6.5 y 6.8.
+| 6.1 | Menú **Configuración** | Estado del PDF y “Consultas a proveedores este mes: 0” |
+| 6.2 | **Agregar credencial** → Proveedor **Decolecta** (viene elegido), pegar el token → Guardar | Aparece con prioridad 1, token `…abcd`, uso “0 de 100” |
+| 6.3 | Nuevo documento → DNI de una persona real que **no** esté en Clientes → Buscar | “Datos obtenidos de Decolecta y guardados en Clientes”; en Configuración el uso pasa a “1 de 100” |
+| 6.4 | Buscar el mismo DNI otra vez | “Datos cargados desde Clientes (sin costo)”; el uso no sube |
+| 6.5 | Pulsar **Consultar de nuevo** | Vuelve a preguntar a Decolecta (uso +1) |
+| 6.6 | Buscar un RUC real (por ejemplo, de una empresa conocida) | Se completa la razón social y la dirección fiscal |
+| 6.7 | *(Cambio automático)* Agregar APIsPERU con prioridad 2. Editar Decolecta y poner “Consultas gratis al mes” = el uso actual (por ejemplo 2). Buscar otro DNI | “Datos obtenidos de APIsPERU…”: Decolecta se saltó porque llegó a su límite |
+| 6.8 | Volver a poner 100 en Decolecta | Decolecta vuelve a usarse primero |
+| 6.9 | Editar una credencial y pegar un token falso → buscar un DNI nuevo | Pasa a la siguiente; si no hay otra: “El proveedor rechazó el token…” |
+| 6.10 | En pgAdmin: tabla `credencial_api` | El token está cifrado (texto ilegible), nunca en claro |
+| 6.11 | Menú **Clientes** → Nuevo cliente → DNI real no registrado → **Buscar** | Se completan nombres y apellidos y el formulario pasa a “Editar cliente”; agregar teléfono y Guardar |
 
 ## Bloque 7: Usuarios
 
 | # | Paso | Resultado esperado |
 |---|---|---|
-| 7.1 | Menú **Usuarios** → **Nuevo usuario**: `operador1`, `Operador de Prueba`, rol Operador, contraseña `operador-123` | Aparece activo |
-| 7.2 | Cerrar sesión e ingresar como `operador1` | El menú **no** muestra Administración |
+| 7.1 | Menú **Usuarios** → **Nuevo usuario** → *Usuario para ingresar*: `operador1` · *Nombre completo*: `Operador de Prueba` · *Rol*: Operador · *Contraseña inicial*: `operador-123` | Aparece activo, con `operador1` en la columna Usuario |
+| 7.2 | Cerrar sesión e ingresar con **usuario** `operador1` (no el nombre completo) y contraseña `operador-123` | Entra; el menú **no** muestra Administración |
 | 7.3 | Ingresar 5 veces con contraseña equivocada y luego con la correcta | “Usuario bloqueado por varios intentos fallidos…” |
 | 7.4 | Como `admin`: Usuarios → `operador1` aparece “Bloqueado” → Restablecer contraseña | Puede volver a ingresar con la contraseña nueva |
 | 7.5 | Ícono 🔑 (barra superior) → cambiar la propia contraseña | “Contraseña cambiada.” |

@@ -43,10 +43,11 @@ public class CredencialService {
     }
 
     @Transactional
-    public CredencialApi crear(Proveedor proveedor, String nombre, String token, int prioridad) {
+    public CredencialApi crear(Proveedor proveedor, String nombre, String token, int prioridad, Integer limiteMensual) {
         String limpio = validarToken(token);
         CredencialApi nueva = credenciales.save(
                 new CredencialApi(proveedor, nombre, cifrado.cifrar(limpio), finalDe(limpio), prioridad));
+        nueva.cambiarLimiteMensual(limiteMensual);
         eventos.publishEvent(EventoAuditoria.de(
                 "CREDENCIAL_GUARDADA", "credencial", nueva.getId(), proveedor.nombre() + " " + nueva.getTokenFinal()));
         return nueva;
@@ -54,11 +55,13 @@ public class CredencialService {
 
     /** Edita nombre, prioridad y estado; el token solo cambia si se envía uno nuevo. */
     @Transactional
-    public CredencialApi editar(UUID id, String nombre, String tokenNuevo, int prioridad, boolean activo) {
+    public CredencialApi editar(
+            UUID id, String nombre, String tokenNuevo, int prioridad, boolean activo, Integer limiteMensual) {
         CredencialApi credencial = credenciales
                 .findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La credencial no existe."));
         credencial.editar(nombre, prioridad, activo);
+        credencial.cambiarLimiteMensual(limiteMensual);
         if (tokenNuevo != null && !tokenNuevo.isBlank()) {
             String limpio = validarToken(tokenNuevo);
             credencial.cambiarToken(cifrado.cifrar(limpio), finalDe(limpio));
@@ -69,6 +72,12 @@ public class CredencialService {
                 id,
                 credencial.getProveedor().nombre() + " " + credencial.getTokenFinal()));
         return credencial;
+    }
+
+    /** Consultas hechas con esta credencial desde el inicio del mes. */
+    @Transactional(readOnly = true)
+    public long usadasEsteMes(UUID id) {
+        return consultas.contarDeCredencialDesde(id, ConsultaService.inicioDelMes());
     }
 
     @Transactional

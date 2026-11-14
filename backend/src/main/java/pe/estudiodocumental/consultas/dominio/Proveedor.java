@@ -3,7 +3,8 @@ package pe.estudiodocumental.consultas.dominio;
 /** Proveedores externos de consulta de DNI y RUC. */
 public enum Proveedor {
     FACTILIZA("Factiliza"),
-    APISPERU("APIsPERU");
+    APISPERU("APIsPERU"),
+    DECOLECTA("Decolecta");
 
     private final String nombre;
 

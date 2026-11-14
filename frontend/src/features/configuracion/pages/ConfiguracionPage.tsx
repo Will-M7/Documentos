@@ -12,6 +12,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  Link,
   MenuItem,
   Stack,
   Switch,
@@ -28,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { EncabezadoPagina } from '../../../components/EncabezadoPagina'
 import {
+  AYUDA_PROVEEDOR,
   crearCredencial,
   editarCredencial,
   eliminarCredencial,
@@ -81,7 +83,9 @@ export function ConfiguracionPage() {
               <Typography variant="h6">Consultas de DNI y RUC</Typography>
               <Typography variant="body2" color="text.secondary">
                 Al buscar un documento se revisa primero Clientes (sin costo). Si no está, se consulta a estos
-                proveedores en orden de prioridad (1 primero); si uno falla se usa el siguiente.
+                proveedores en orden de prioridad (1 primero). Si uno falla o gastó su cupo del mes, se usa el
+                siguiente automáticamente. Puede registrar varias cuentas gratis (por ejemplo, Decolecta y
+                APIsPERU).
               </Typography>
             </div>
             <Button
@@ -94,7 +98,7 @@ export function ConfiguracionPage() {
           </Stack>
           {credenciales.data && (
             <Typography variant="body2" sx={{ mb: 2 }}>
-              Consultas pagadas este mes: <strong>{credenciales.data.consultasDelMes}</strong>
+              Consultas a proveedores este mes: <strong>{credenciales.data.consultasDelMes}</strong>
             </Typography>
           )}
           {credenciales.error && <Alert severity="error">{credenciales.error.message}</Alert>}
@@ -106,6 +110,7 @@ export function ConfiguracionPage() {
                 <TableCell>Proveedor</TableCell>
                 <TableCell>Token</TableCell>
                 <TableCell>Estado</TableCell>
+                <TableCell>Uso del mes</TableCell>
                 <TableCell>Último uso</TableCell>
                 <TableCell />
               </TableRow>
@@ -127,12 +132,24 @@ export function ConfiguracionPage() {
                   </TableCell>
                   <TableCell sx={{ fontFamily: 'monospace' }}>{c.tokenFinal}</TableCell>
                   <TableCell>
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      label={c.activo ? 'Activa' : 'Pausada'}
-                      color={c.activo ? 'success' : 'default'}
-                    />
+                    {c.agotadaHasta ? (
+                      <Chip
+                        size="small"
+                        color="warning"
+                        label={`Agotada hasta ${new Date(c.agotadaHasta).toLocaleDateString('es-PE')}`}
+                      />
+                    ) : (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={c.activo ? 'Activa' : 'Pausada'}
+                        color={c.activo ? 'success' : 'default'}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {c.usadasEsteMes}
+                    {c.limiteMensual ? ` de ${c.limiteMensual}` : ''}
                   </TableCell>
                   <TableCell>
                     {c.ultimoUso ? new Date(c.ultimoUso).toLocaleString('es-PE') : 'Nunca'}
@@ -159,8 +176,9 @@ export function ConfiguracionPage() {
               ))}
               {credenciales.data?.credenciales.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
-                    Sin credenciales: los datos de clientes nuevos se escriben a mano.
+                  <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                    Sin credenciales: los datos de clientes nuevos se escriben a mano. Para consultar gratis,
+                    agregue una de Decolecta.
                   </TableCell>
                 </TableRow>
               )}
@@ -189,7 +207,13 @@ function CredencialDialog({
   onCerrar: () => void
 }) {
   const queryClient = useQueryClient()
-  const [proveedor, setProveedor] = useState<Proveedor>(credencial?.proveedor ?? 'FACTILIZA')
+  const [proveedor, setProveedor] = useState<Proveedor>(credencial?.proveedor ?? 'DECOLECTA')
+  const [limite, setLimite] = useState<string>(
+    credencial
+      ? String(credencial.limiteMensual ?? '')
+      : String(AYUDA_PROVEEDOR.DECOLECTA.limiteSugerido ?? ''),
+  )
+  const limiteMensual = limite.trim() ? Number(limite) : null
   const [nombre, setNombre] = useState(credencial?.nombre ?? '')
   const [token, setToken] = useState('')
   const [prioridad, setPrioridad] = useState(credencial?.prioridad ?? 1)
@@ -198,8 +222,8 @@ function CredencialDialog({
   const guardar = useMutation({
     mutationFn: () =>
       credencial
-        ? editarCredencial(credencial.id, { nombre, token, prioridad, activo })
-        : crearCredencial({ proveedor, nombre, token, prioridad }),
+        ? editarCredencial(credencial.id, { nombre, token, prioridad, activo, limiteMensual })
+        : crearCredencial({ proveedor, nombre, token, prioridad, limiteMensual }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credenciales'] })
       onCerrar()
@@ -217,7 +241,19 @@ function CredencialDialog({
             label="Proveedor"
             value={proveedor}
             disabled={!!credencial}
-            onChange={(e) => setProveedor(e.target.value as Proveedor)}
+            onChange={(e) => {
+              const elegido = e.target.value as Proveedor
+              setProveedor(elegido)
+              setLimite(String(AYUDA_PROVEEDOR[elegido].limiteSugerido ?? ''))
+            }}
+            helperText={
+              <>
+                {AYUDA_PROVEEDOR[proveedor].texto}{' '}
+                <Link href={AYUDA_PROVEEDOR[proveedor].enlace} target="_blank" rel="noopener">
+                  Obtener token
+                </Link>
+              </>
+            }
           >
             {(Object.keys(NOMBRE_PROVEEDOR) as Proveedor[]).map((p) => (
               <MenuItem key={p} value={p}>
@@ -246,6 +282,14 @@ function CredencialDialog({
             onChange={(e) => setPrioridad(Number(e.target.value))}
             slotProps={{ htmlInput: { min: 1, max: 99 } }}
             helperText="1 se usa primero."
+          />
+          <TextField
+            label="Consultas gratis al mes"
+            type="number"
+            value={limite}
+            onChange={(e) => setLimite(e.target.value)}
+            slotProps={{ htmlInput: { min: 1 } }}
+            helperText="Al llegar a este número se pasa a la siguiente credencial hasta el próximo mes. Vacío = sin límite."
           />
           {credencial && (
             <FormControlLabel

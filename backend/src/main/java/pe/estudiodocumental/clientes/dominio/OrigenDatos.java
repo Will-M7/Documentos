@@ -4,5 +4,6 @@ package pe.estudiodocumental.clientes.dominio;
 public enum OrigenDatos {
     MANUAL,
     FACTILIZA,
-    APISPERU
+    APISPERU,
+    DECOLECTA
 }

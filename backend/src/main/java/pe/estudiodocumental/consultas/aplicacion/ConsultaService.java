@@ -1,5 +1,7 @@
 package pe.estudiodocumental.consultas.aplicacion;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +29,7 @@ import pe.estudiodocumental.consultas.infraestructura.ProveedorConsulta;
 import pe.estudiodocumental.consultas.infraestructura.ProveedorConsulta.DatosConsultados;
 import pe.estudiodocumental.consultas.infraestructura.ProveedorConsulta.FalloConsulta;
 import pe.estudiodocumental.consultas.infraestructura.ProveedorConsulta.Motivo;
+import pe.estudiodocumental.documentos.aplicacion.DocumentoService;
 
 /**
  * Consulta de DNI/RUC: primero en Clientes (gratis y sin internet); si no está, en los proveedores configurados por
@@ -87,12 +90,23 @@ public class ConsultaService {
                 return new Resultado("CLIENTES", local.get(), "Datos cargados desde Clientes (sin costo).");
             }
         }
-        List<CredencialApi> activas = credenciales.findByActivoTrueOrderByPrioridadAscCreadoEnAsc();
-        if (activas.isEmpty()) {
+        Instant ahora = Instant.now();
+        List<CredencialApi> configuradas = credenciales.findByActivoTrueOrderByPrioridadAscCreadoEnAsc();
+        // Se saltan las que ya gastaron su cupo del mes: se usa la siguiente automáticamente
+        List<CredencialApi> activas =
+                configuradas.stream().filter(c -> conCupo(c, ahora)).toList();
+        if (configuradas.isEmpty()) {
             return new Resultado(
                     null,
                     null,
                     "No está registrado y no hay credenciales de consulta configuradas. Complete los datos a mano.");
+        }
+        if (activas.isEmpty()) {
+            return new Resultado(
+                    null,
+                    null,
+                    "Todas las credenciales gastaron su cupo gratis de este mes. Complete los datos a mano o agregue otra"
+                            + " credencial en Configuración.");
         }
         limite.registrar(usuarioId);
         String ultimoError = Motivo.NO_ENCONTRADO.mensaje();
@@ -112,8 +126,7 @@ public class ConsultaService {
                                         tipo,
                                         normalizado,
                                         credencial.getProveedor().nombre())));
-                registro.save(new ConsultaExterna(
-                        tipo.name(), normalizado, credencial.getProveedor(), true, null, usuarioId));
+                registro.save(new ConsultaExterna(tipo.name(), normalizado, credencial, true, null, usuarioId));
                 return new Resultado(
                         credencial.getProveedor().nombre(),
                         cliente,
@@ -122,8 +135,12 @@ public class ConsultaService {
             } catch (FalloConsulta | ReglaNegocioException | IllegalStateException e) {
                 ultimoError = e.getMessage();
                 credencial.registrarUso(e.getMessage());
-                registro.save(new ConsultaExterna(
-                        tipo.name(), normalizado, credencial.getProveedor(), false, e.getMessage(), usuarioId));
+                registro.save(
+                        new ConsultaExterna(tipo.name(), normalizado, credencial, false, e.getMessage(), usuarioId));
+                if (e instanceof FalloConsulta f && f.motivo() == Motivo.LIMITE) {
+                    // El proveedor dice que se acabó el cupo: descansa hasta el próximo mes y se sigue con la siguiente
+                    credencial.marcarAgotada(inicioDelProximoMes());
+                }
                 if (e instanceof FalloConsulta f && f.motivo() == Motivo.NO_ENCONTRADO) {
                     break;
                 }
@@ -159,6 +176,34 @@ public class ConsultaService {
     }
 
     private static OrigenDatos origen(CredencialApi credencial) {
-        return credencial.getProveedor() == Proveedor.FACTILIZA ? OrigenDatos.FACTILIZA : OrigenDatos.APISPERU;
+        return switch (credencial.getProveedor()) {
+            case FACTILIZA -> OrigenDatos.FACTILIZA;
+            case APISPERU -> OrigenDatos.APISPERU;
+            case DECOLECTA -> OrigenDatos.DECOLECTA;
+        };
+    }
+
+    /** Tiene cupo si no está marcada como agotada y no llegó a su límite mensual. */
+    private boolean conCupo(CredencialApi c, Instant ahora) {
+        if (c.estaAgotada(ahora)) {
+            return false;
+        }
+        return c.getLimiteMensual() == null
+                || registro.contarDeCredencialDesde(c.getId(), inicioDelMes()) < c.getLimiteMensual();
+    }
+
+    static Instant inicioDelMes() {
+        return LocalDate.now(DocumentoService.ZONA)
+                .withDayOfMonth(1)
+                .atStartOfDay(DocumentoService.ZONA)
+                .toInstant();
+    }
+
+    private static Instant inicioDelProximoMes() {
+        return LocalDate.now(DocumentoService.ZONA)
+                .withDayOfMonth(1)
+                .plusMonths(1)
+                .atStartOfDay(DocumentoService.ZONA)
+                .toInstant();
     }
 }

@@ -29,12 +29,17 @@ public class ConsultaExterna extends EntidadBase {
     @Column(name = "usuario_id")
     private UUID usuarioId;
 
+    @Column(name = "credencial_id")
+    private UUID credencialId;
+
     protected ConsultaExterna() {
         // Requerido por JPA
     }
 
     public ConsultaExterna(
-            String tipo, String numero, Proveedor proveedor, boolean exitosa, String mensaje, UUID usuarioId) {
+            String tipo, String numero, CredencialApi credencial, boolean exitosa, String mensaje, UUID usuarioId) {
+        this.credencialId = credencial.getId();
+        Proveedor proveedor = credencial.getProveedor();
         this.tipo = tipo;
         this.numero = numero;
         this.proveedor = proveedor.name();

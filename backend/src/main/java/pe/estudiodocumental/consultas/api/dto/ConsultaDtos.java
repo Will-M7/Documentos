@@ -30,9 +30,12 @@ public final class ConsultaDtos {
             int prioridad,
             boolean activo,
             String ultimoEstado,
-            Instant ultimoUso) {
+            Instant ultimoUso,
+            Integer limiteMensual,
+            long usadasEsteMes,
+            Instant agotadaHasta) {
 
-        public static CredencialResponse desde(CredencialApi c) {
+        public static CredencialResponse desde(CredencialApi c, long usadasEsteMes) {
             return new CredencialResponse(
                     c.getId(),
                     c.getProveedor(),
@@ -41,7 +44,10 @@ public final class ConsultaDtos {
                     c.getPrioridad(),
                     c.isActivo(),
                     c.getUltimoEstado(),
-                    c.getUltimoUso());
+                    c.getUltimoUso(),
+                    c.getLimiteMensual(),
+                    usadasEsteMes,
+                    c.estaAgotada(Instant.now()) ? c.getAgotadaHasta() : null);
         }
     }
 
@@ -52,13 +58,15 @@ public final class ConsultaDtos {
             @NotNull(message = "Pegue el token") @Size(max = 1000)
             String token,
 
-            @Min(1) @Max(99) int prioridad) {}
+            @Min(1) @Max(99) int prioridad,
+            @Min(1) Integer limiteMensual) {}
 
     public record EditarCredencialRequest(
             @Size(max = 80) String nombre,
             @Size(max = 1000) String token,
             @Min(1) @Max(99) int prioridad,
-            boolean activo) {}
+            boolean activo,
+            @Min(1) Integer limiteMensual) {}
 
     public record ResumenCredenciales(long consultasDelMes, java.util.List<CredencialResponse> credenciales) {}
 }

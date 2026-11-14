@@ -3,7 +3,7 @@ import type { Pagina } from '../../api/tipos'
 
 export type TipoCliente = 'PERSONA' | 'EMPRESA'
 export type TipoDocumento = 'DNI' | 'RUC' | 'CE' | 'PASAPORTE'
-export type OrigenDatos = 'MANUAL' | 'FACTILIZA' | 'APISPERU'
+export type OrigenDatos = 'MANUAL' | 'FACTILIZA' | 'APISPERU' | 'DECOLECTA'
 
 export interface DatosCliente {
   tipo: TipoCliente
