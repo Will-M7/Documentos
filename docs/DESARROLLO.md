@@ -2,7 +2,7 @@
 
 Cómo levantar el proyecto en tu PC y cómo trabajar en él día a día. Para el *qué* y el *por qué* de cada decisión, ver [ARQUITECTURA.md](ARQUITECTURA.md).
 
-Se desarrolla **sin Docker**: PostgreSQL instalado en Windows (como MySQL en Laragon), el backend con `mvnw` y la web con `npm`. Docker es opcional y solo sirve para probar la instalación completa (sección 5).
+Se desarrolla **sin Docker**: PostgreSQL instalado en Windows, el backend con `mvnw` y la web con `npm`. Docker es opcional y solo sirve para probar la instalación completa (sección 5).
 
 ## 1. Requisitos
 
@@ -10,25 +10,28 @@ Se desarrolla **sin Docker**: PostgreSQL instalado en Windows (como MySQL en Lar
 |---|---|---|
 | JDK | 21 | Backend |
 | Node.js | 24 | Frontend |
-| PostgreSQL | 17 | Base de datos |
-| HeidiSQL (viene con Laragon), pgAdmin o DBeaver | reciente | Ver la base de datos |
+| PostgreSQL | 16 o superior (servidor e instalación: 17) | Base de datos |
+| pgAdmin 4 | viene con PostgreSQL | Ver y consultar la base de datos |
 | Git | reciente | Control de versiones |
 
 Maven no hace falta instalarlo: el backend trae `mvnw`.
 
 ## 2. Instalar PostgreSQL (una sola vez)
 
-1. Descarga el instalador de **PostgreSQL 17 para Windows** desde https://www.postgresql.org/download/windows/ (enlace *Download the installer*, de EDB).
+1. Descarga el instalador de **PostgreSQL para Windows** (16 o superior) desde https://www.postgresql.org/download/windows/ (enlace *Download the installer*, de EDB).
 2. Ejecútalo con las opciones por defecto:
    - Componentes: deja marcados **PostgreSQL Server**, **pgAdmin 4** y **Command Line Tools**. *Stack Builder* no hace falta.
    - **Contraseña del superusuario `postgres`:** elige una y guárdala. Es la del administrador de PostgreSQL, no la del proyecto.
    - **Puerto:** `5432`.
    - *Locale:* el predeterminado.
-3. Al terminar, PostgreSQL queda como **servicio de Windows** y arranca solo con la PC.
+3. Al final el instalador ofrece abrir **Stack Builder**: no hace falta, ciérralo con *Cancel*.
+4. PostgreSQL queda como **servicio de Windows** (`postgresql-x64-16` o `-17`) y arranca solo con la PC.
 
 ### Crear el usuario y las bases del proyecto
 
-Conéctate como `postgres` con HeidiSQL o pgAdmin (servidor `127.0.0.1`, puerto `5432`, usuario `postgres` y la contraseña que elegiste) y ejecuta:
+1. Abre **pgAdmin 4** (menú Inicio) y escribe la contraseña de `postgres` cuando la pida.
+2. En el panel izquierdo: *Servers* → *PostgreSQL 16* → clic derecho en *Databases* → *Query Tool* (o selecciona *postgres* y pulsa el ícono de consulta).
+3. Pega esto y ejecútalo con ▶ (o F5):
 
 ```sql
 CREATE ROLE estudio WITH LOGIN PASSWORD 'estudio_local';
@@ -38,9 +41,14 @@ CREATE DATABASE estudio_documental_test OWNER estudio;   -- pruebas automáticas
 
 `estudio` / `estudio_local` son credenciales **solo de desarrollo**, las mismas que espera el perfil `local` del backend. En la instalación real de la oficina se usan otras.
 
-### Ver la base con HeidiSQL (Laragon)
+### Ver la base con pgAdmin
 
-Nueva sesión → **Tipo de red:** `PostgreSQL (TCP/IP)` → servidor `127.0.0.1`, usuario `estudio`, contraseña `estudio_local`, puerto `5432`, base de datos `estudio_documental` → **Abrir**. Las tablas están en el esquema `public`.
+En el panel izquierdo: *Servers* → *PostgreSQL 16* → *Databases* → **estudio_documental** → *Schemas* → *public* → **Tables** (clic derecho → *Refresh* si no aparecen).
+
+- Ver los datos de una tabla: clic derecho → *View/Edit Data* → *All Rows*.
+- Ver su estructura (columnas, tipos, restricciones): clic derecho → *Properties*, o despliega *Columns* y *Constraints*.
+- Diagrama de todas las tablas: clic derecho en **estudio_documental** → *ERD For Database*.
+- Escribir consultas: selecciona la base y abre *Tools* → *Query Tool*.
 
 ## 3. Primera vez con el código
 
@@ -103,7 +111,7 @@ Las pruebas del backend usan la base `estudio_documental_test`: la vacían y apl
 
 ### Un cambio en la base de datos
 
-Las tablas **no se modifican a mano** desde HeidiSQL o pgAdmin: esas herramientas son para ver datos y hacer consultas. La estructura se cambia con migraciones:
+Las tablas **no se modifican a mano** desde pgAdmin: esas herramientas son para ver datos y hacer consultas. La estructura se cambia con migraciones:
 
 1. Crea `backend/src/main/resources/db/migration/V00N__descripcion.sql` con el número siguiente.
 2. Reinicia el backend: aplica la migración solo y la anota en la tabla `flyway_schema_history`.
@@ -156,9 +164,9 @@ Prefijos de commit: `feat` (funcionalidad), `fix` (corrección), `docs`, `refact
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| El backend no arranca: `Connection refused` | El servicio de PostgreSQL está detenido | Windows → *Servicios* → `postgresql-x64-17` → Iniciar |
+| El backend no arranca: `Connection refused` | El servicio de PostgreSQL está detenido | Windows → *Servicios* → `postgresql-x64-16` (o `-17`) → Iniciar |
 | `password authentication failed for user "estudio"` | No se creó el usuario o la clave no coincide | Ejecuta el SQL de la sección 2 |
 | `database "estudio_documental" does not exist` | Falta crear la base | Ejecuta el SQL de la sección 2 |
 | `Schema-validation: missing column` | La entidad no coincide con las migraciones | Agrega una migración nueva con el cambio |
 | El login responde 401 con la clave correcta | Ya existía un usuario y el admin inicial no se volvió a crear | Usa ese usuario, o vacía la base de desarrollo |
-| `Port 8080 was already in use` | Otro programa usa el puerto (¿Apache de Laragon?) | Ciérralo, o arranca con `-Dspring-boot.run.arguments=--server.port=8081` y cambia el puerto en `frontend/vite.config.ts` |
+| `Port 8080 was already in use` | Otro programa usa el puerto | Ciérralo, o arranca con `-Dspring-boot.run.arguments=--server.port=8081` y cambia el puerto en `frontend/vite.config.ts` |

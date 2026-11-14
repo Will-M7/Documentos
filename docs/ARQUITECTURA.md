@@ -86,7 +86,7 @@ Cada decisión indica la alternativa descartada y el motivo, para no volver a di
 | D8 | **Archivos en disco, metadatos en la base** | Archivos como BLOB en la base (v1) | La base se mantiene liviana y los respaldos son más rápidos; el almacenamiento queda detrás de una interfaz para pasar a la nube (S3/MinIO) sin cambiar el resto |
 | D9 | **React + TypeScript** | Angular, Vue, JavaFX | El más extendido; el conocimiento se reutiliza en la app móvil con React Native |
 | D10 | **Autenticación con JWT** | Sesión con cookie | Un solo mecanismo para web, portal y móvil |
-| D11 | **Desarrollo sin Docker; Docker Compose opcional para instalar** | Docker obligatorio | El equipo trabaja con PostgreSQL instalado en Windows (como Laragon). Docker queda como forma rápida de instalar en un servidor; no cambia el costo de hospedaje |
+| D11 | **Desarrollo sin Docker; Docker Compose opcional para instalar** | Docker obligatorio | El equipo trabaja con PostgreSQL instalado en Windows y pgAdmin. Docker queda como forma rápida de instalar en un servidor; no cambia el costo de hospedaje |
 
 ---
 
