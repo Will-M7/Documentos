@@ -12,7 +12,7 @@ Cada bloque se prueba por separado, en orden. Marque ✅ o anote lo que falló.
    mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local
    ```
 
-   Al arrancar aplica solo las migraciones nuevas (V002 a V008). Si ya tenía el backend abierto, ciérrelo (Ctrl+C) y vuelva a abrirlo.
+   Al arrancar aplica solo las migraciones nuevas (hasta V009). Si ya tenía el backend abierto, ciérrelo (Ctrl+C) y vuelva a abrirlo.
 3. Web (otra terminal):
 
    ```bash
@@ -118,6 +118,19 @@ Sin token real se puede probar todo menos 6.3 a 6.5 y 6.8.
 | 8.2 | Menú **Auditoría** | Aparecen, de la más reciente a la más antigua: “Descargó un documento”, “Generó un documento”, “Registró un cliente”, “Contraseña incorrecta”, con usuario y fecha |
 | 8.3 | Buscar el DNI del cliente o el n.º del documento | Solo los registros relacionados |
 | 8.4 | Ingresar como operador | No ve el menú Auditoría |
+
+## Bloque 10–11: Instalación en un solo programa y respaldos
+
+Se prueba en la PC de desarrollo; en la oficina se sigue [INSTALACION.md](INSTALACION.md).
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 10.1 | Cerrar el backend y la web de desarrollo. Desde la raíz del proyecto: `scripts\windows\empaquetar.cmd` | Termina con “Listo” y crea la carpeta `instalacion` con `app.jar`, `web`, `iniciar.cmd`, `respaldo.cmd`, `restaurar.cmd` |
+| 10.2 | En `instalacion`, copiar `config.ejemplo.cmd` como `config.cmd` y poner `DB_CLAVE=estudio_local` y dos claves largas en `JWT_SECRETO` y `APP_CLAVE_MAESTRA` | — |
+| 10.3 | Doble clic en `iniciar.cmd` y abrir http://localhost:8080 | La web abre sin `npm run dev`; se ingresa con los usuarios de siempre |
+| 10.4 | Desde otra PC de la red: http://NOMBRE-DE-SU-PC:8080 (con el firewall abierto, ver INSTALACION.md) | Abre la misma web |
+| 11.1 | Doble clic en `respaldo.cmd` | “Respaldo listo” y una carpeta `respaldos\AAAAMMDD_HHMM` con `base.dump` y `archivos` |
+| 11.2 | *(Opcional, con cuidado)* Generar un documento, cerrar `iniciar.cmd` y ejecutar `restaurar.cmd respaldos\<carpeta>` escribiendo `SI` | Al volver a iniciar, el documento generado después del respaldo ya no está |
 
 ---
 
