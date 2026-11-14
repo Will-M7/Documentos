@@ -31,7 +31,7 @@ Maven no hace falta instalarlo: el backend trae `mvnw`.
 
 1. Abre **pgAdmin 4** (menú Inicio) y escribe la contraseña de `postgres` cuando la pida.
 2. En el panel izquierdo: *Servers* → *PostgreSQL 16* → clic derecho en *Databases* → *Query Tool* (o selecciona *postgres* y pulsa el ícono de consulta).
-3. Pega esto y ejecútalo con ▶ (o F5):
+3. Ejecuta **una línea a la vez**: selecciónala con el mouse y presiona **F5**. Si ejecutas las tres juntas, pgAdmin muestra *CREATE DATABASE no puede ser ejecutado dentro de un bloque de transacción* y no crea nada.
 
 ```sql
 CREATE ROLE estudio WITH LOGIN PASSWORD 'estudio_local';
