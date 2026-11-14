@@ -29,7 +29,7 @@ cd frontend && npm install && npm run dev
 
 Abre http://localhost:5173 e ingresa con `admin` / `admin-local-123` (solo en desarrollo).
 
-Para instalar en un servidor también hay una opción con Docker Compose en [`infra/`](infra) (opcional).
+Para instalar en la oficina (un solo programa, sin Docker): [docs/INSTALACION.md](docs/INSTALACION.md). También hay una opción con Docker Compose en [`infra/`](infra).
 
 ## Documentación
 
@@ -38,4 +38,5 @@ Para instalar en un servidor también hay una opción con Docker Compose en [`in
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Decisiones, módulos, modelo de datos, seguridad, hoja de ruta |
 | [docs/DESARROLLO.md](docs/DESARROLLO.md) | Requisitos, cómo levantar, comandos, cómo agregar módulos, flujo con Git |
 | [docs/GUIA-PRUEBAS.md](docs/GUIA-PRUEBAS.md) | Qué probar en cada pantalla y qué debe pasar |
+| [docs/INSTALACION.md](docs/INSTALACION.md) | Instalar en la PC servidor de la oficina sin Docker, acceso desde otras PCs y respaldos |
 | API en vivo | `http://localhost:8080/api/docs` con el backend levantado |

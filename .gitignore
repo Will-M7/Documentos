@@ -39,3 +39,7 @@ backend/datos/
 !.vscode/settings.json
 .DS_Store
 Thumbs.db
+
+# --- Instalacion armada y su configuracion con claves ---
+/instalacion/
+scripts/windows/config.cmd

@@ -558,9 +558,9 @@ docker compose --env-file .env up -d --build    # PostgreSQL + backend + web
 
 - Las demás PCs entran por el navegador a `http://<nombre-del-servidor>:8080`.
 - Se le asigna IP fija o nombre en la red local.
-- La guía detallada estará en `docs/instalacion.md`.
+- La guía detallada está en [INSTALACION.md](INSTALACION.md).
 
-**Alternativa sin Docker:** instalar PostgreSQL, Java 21 y LibreOffice, y ejecutar el backend como servicio de Windows. Se documentará si el cliente no puede usar Docker.
+**Instalación recomendada (sin Docker):** PostgreSQL, Java 21 y LibreOffice instalados en Windows; el backend sirve también la web (`WEB_DIR`) en un solo puerto y arranca con el Programador de tareas. Scripts en `scripts/windows/` (empaquetar, iniciar, respaldo, restaurar).
 
 ---
 
