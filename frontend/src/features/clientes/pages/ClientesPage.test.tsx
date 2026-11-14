@@ -71,4 +71,37 @@ describe('Pantalla de clientes', () => {
 
     expect(await within(dialogo).findByText('Ya existe un cliente con DNI 41234567.')).toBeInTheDocument()
   })
+
+  it('al dar de alta, Buscar trae los datos del DNI y pasa a editar ese cliente', async () => {
+    let actualizado: unknown
+    simularApi({
+      'GET /clientes': () => respuestaJson(200, paginaVacia),
+      'POST /consultas/DNI/41234567': () =>
+        respuestaJson(200, {
+          encontrado: true,
+          origen: 'Factiliza',
+          cliente: ana,
+          mensaje: 'Datos obtenidos de Factiliza y guardados en Clientes.',
+        }),
+      'PUT /clientes/c1': (_, init) => {
+        actualizado = JSON.parse(String(init?.body))
+        return respuestaJson(200, ana)
+      },
+    })
+    abrirComoAdmin('/clientes')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo cliente' }))
+    const dialogo = await screen.findByRole('dialog')
+    await userEvent.type(within(dialogo).getByLabelText(/número/i), '41234567')
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Buscar' }))
+
+    expect(await within(dialogo).findByText(/Datos obtenidos de Factiliza/)).toBeInTheDocument()
+    expect(within(dialogo).getByText('Editar cliente')).toBeInTheDocument()
+    expect(within(dialogo).getByLabelText(/^nombres/i)).toHaveValue('Ana María')
+
+    await userEvent.type(within(dialogo).getByLabelText(/teléfono/i), '984111222')
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }))
+    await screen.findByText('Todavía no hay clientes registrados.')
+    expect(actualizado).toMatchObject({ numeroDocumento: '41234567', telefono: '984111222' })
+  })
 })

@@ -95,8 +95,9 @@ npm test
 | 6.5 | Pulsar **Consultar de nuevo** | Vuelve a preguntar a Factiliza (contador +1) |
 | 6.6 | Editar la credencial y pegar un token falso | Al buscar: “El proveedor rechazó el token…” |
 | 6.7 | En pgAdmin: tabla `credencial_api` | El token está cifrado (texto ilegible), nunca en claro |
+| 6.8 | Menú **Clientes** → Nuevo cliente → DNI real no registrado → **Buscar** | Se completan nombres y apellidos y el formulario pasa a “Editar cliente”; agregar teléfono y Guardar |
 
-Sin token real se puede probar todo menos 6.3 a 6.5.
+Sin token real se puede probar todo menos 6.3 a 6.5 y 6.8.
 
 ## Bloque 7: Usuarios
 

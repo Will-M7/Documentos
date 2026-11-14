@@ -1,5 +1,7 @@
+import Search from '@mui/icons-material/Search'
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -12,10 +14,11 @@ import {
   ToggleButtonGroup,
 } from '@mui/material'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import {
   actualizarCliente,
+  buscarPorDocumento,
   crearCliente,
   ETIQUETA_DOCUMENTO,
   type Cliente,
@@ -53,29 +56,59 @@ export function ClienteFormDialog({
     defaultValues: VACIO,
   })
   const tipo = useWatch({ control, name: 'tipo' })
+  const tipoDocumento = useWatch({ control, name: 'tipoDocumento' })
+  const numeroDocumento = useWatch({ control, name: 'numeroDocumento' })
+  // Si al buscar el documento resulta que ya existe, el formulario pasa a editar ese cliente
+  const [encontrado, setEncontrado] = useState<Cliente | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const actual = cliente ?? encontrado
 
   const guardar = useMutation({
-    mutationFn: (datos: DatosCliente) =>
-      cliente ? actualizarCliente(cliente.id, datos) : crearCliente(datos),
+    mutationFn: (datos: DatosCliente) => (actual ? actualizarCliente(actual.id, datos) : crearCliente(datos)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes'] })
-      onCerrar()
+      cerrar()
+    },
+  })
+
+  const buscar = useMutation({
+    mutationFn: () => buscarPorDocumento(tipoDocumento, numeroDocumento),
+    onSuccess: ({ cliente: hallado, mensaje }) => {
+      setAviso(mensaje)
+      if (hallado) {
+        setEncontrado(hallado)
+        reset({ ...VACIO, ...sinNulos(hallado) })
+        queryClient.invalidateQueries({ queryKey: ['clientes'] })
+      }
     },
   })
 
   const { reset: limpiarError } = guardar
+  const { reset: limpiarBusqueda } = buscar
   useEffect(() => {
     if (abierto) {
       reset(cliente ? { ...VACIO, ...sinNulos(cliente) } : VACIO)
       limpiarError()
+      limpiarBusqueda()
     }
-  }, [abierto, cliente, reset, limpiarError])
+  }, [abierto, cliente, reset, limpiarError, limpiarBusqueda])
+
+  const cerrar = () => {
+    setEncontrado(null)
+    setAviso(null)
+    onCerrar()
+  }
 
   return (
-    <Dialog open={abierto} onClose={onCerrar} maxWidth="sm" fullWidth>
+    <Dialog open={abierto} onClose={cerrar} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit((datos) => guardar.mutate(datos))} noValidate>
-        <DialogTitle>{cliente ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
+        <DialogTitle>{actual ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
         <DialogContent>
+          {(aviso || buscar.error) && (
+            <Alert severity={buscar.error ? 'error' : encontrado ? 'success' : 'info'} sx={{ mb: 2 }}>
+              {buscar.error ? buscar.error.message : aviso}
+            </Alert>
+          )}
           {guardar.error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {guardar.error.message}
@@ -119,7 +152,20 @@ export function ClienteFormDialog({
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 7 }}>
-              <TextField fullWidth required label="Número" {...register('numeroDocumento')} />
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField fullWidth required label="Número" {...register('numeroDocumento')} />
+                {!cliente && (tipoDocumento === 'DNI' || tipoDocumento === 'RUC') && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Search />}
+                    loading={buscar.isPending}
+                    disabled={!numeroDocumento?.trim()}
+                    onClick={() => buscar.mutate()}
+                  >
+                    Buscar
+                  </Button>
+                )}
+              </Box>
             </Grid>
             {tipo === 'EMPRESA' ? (
               <Grid size={12}>
@@ -154,7 +200,7 @@ export function ClienteFormDialog({
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onCerrar}>Cancelar</Button>
+          <Button onClick={cerrar}>Cancelar</Button>
           <Button type="submit" variant="contained" loading={guardar.isPending}>
             Guardar
           </Button>

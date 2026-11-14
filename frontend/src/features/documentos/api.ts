@@ -1,6 +1,6 @@
 import { api, descargar, obtenerArchivo } from '../../api/cliente'
 import type { Pagina } from '../../api/tipos'
-import type { Cliente, DatosCliente, TipoDocumento } from '../clientes/api'
+import type { Cliente, DatosCliente } from '../clientes/api'
 
 export interface ParticipanteDocumento {
   participante: string
@@ -73,52 +73,6 @@ export function descargarPdf(d: DocumentoResumen) {
 export async function verPdf(d: DocumentoResumen) {
   const { contenido } = await obtenerArchivo(`/documentos/${d.id}/pdf?verEnLinea=true`)
   window.open(URL.createObjectURL(contenido), '_blank')
-}
-
-/** Cliente ya registrado con ese documento, o null si no existe en la base local. */
-export async function clientePorDocumento(tipo: TipoDocumento, numero: string): Promise<Cliente | null> {
-  try {
-    return await api<Cliente>(`/clientes/documento/${tipo}/${encodeURIComponent(numero.trim())}`)
-  } catch (error) {
-    if (error instanceof Error && 'status' in error && (error as { status: number }).status === 404)
-      return null
-    throw error
-  }
-}
-
-export interface ResultadoBusqueda {
-  cliente: Cliente | null
-  mensaje: string
-  /** "CLIENTES", "Factiliza", "APIsPERU" o null. */
-  origen: string | null
-}
-
-/**
- * DNI y RUC: Clientes primero y, si no está, el proveedor configurado (lo guarda en Clientes).
- * Otros documentos: solo Clientes.
- */
-export async function buscarPorDocumento(
-  tipo: TipoDocumento,
-  numero: string,
-  actualizar = false,
-): Promise<ResultadoBusqueda> {
-  if (tipo === 'DNI' || tipo === 'RUC') {
-    const r = await api<{
-      encontrado: boolean
-      origen: string | null
-      cliente: Cliente | null
-      mensaje: string
-    }>(`/consultas/${tipo}/${encodeURIComponent(numero.trim())}?actualizar=${actualizar}`, { method: 'POST' })
-    return { cliente: r.cliente, mensaje: r.mensaje, origen: r.origen }
-  }
-  const cliente = await clientePorDocumento(tipo, numero)
-  return cliente
-    ? { cliente, mensaje: 'Datos cargados desde Clientes.', origen: 'CLIENTES' }
-    : {
-        cliente: null,
-        mensaje: 'No está registrado. Complete los datos: se guardará en Clientes al generar.',
-        origen: null,
-      }
 }
 
 export function obtenerCliente(id: string) {

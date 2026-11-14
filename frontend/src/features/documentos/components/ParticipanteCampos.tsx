@@ -15,13 +15,13 @@ import {
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
+  buscarPorDocumento,
   ETIQUETA_DOCUMENTO,
   type DatosCliente,
   type TipoCliente,
   type TipoDocumento,
 } from '../../clientes/api'
 import type { Participante } from '../../plantillas/api'
-import { buscarPorDocumento } from '../api'
 import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
 
 const DOCUMENTOS_PERSONA: TipoDocumento[] = ['DNI', 'CE', 'PASAPORTE', 'RUC']
