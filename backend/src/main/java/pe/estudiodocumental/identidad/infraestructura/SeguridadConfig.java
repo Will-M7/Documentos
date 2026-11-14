@@ -7,6 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,6 +27,7 @@ import org.springframework.security.web.SecurityFilterChain;
  * <p>Públicos: login, documentación de la API y estado de salud. Todo lo demás requiere token.
  */
 @Configuration
+@EnableMethodSecurity
 class SeguridadConfig {
 
     /** Claim del token que lleva los roles del usuario. */

@@ -7,11 +7,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import pe.estudiodocumental.comun.error.ConflictoException;
 import pe.estudiodocumental.comun.error.NoAutenticadoException;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
@@ -32,6 +34,16 @@ public class ManejadorErrores extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ReglaNegocioException.class)
     ProblemDetail reglaNegocio(ReglaNegocioException e) {
         return problema(HttpStatus.UNPROCESSABLE_CONTENT, "Operación no permitida", e.getMessage());
+    }
+
+    @ExceptionHandler(ConflictoException.class)
+    ProblemDetail conflicto(ConflictoException e) {
+        return problema(HttpStatus.CONFLICT, "Ya existe", e.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail accesoDenegado(AccessDeniedException e) {
+        return problema(HttpStatus.FORBIDDEN, "Sin permiso", "Su usuario no tiene permiso para esta acción.");
     }
 
     @ExceptionHandler(NoAutenticadoException.class)

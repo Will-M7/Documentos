@@ -34,7 +34,7 @@ const OPCIONES: Opcion[] = [
   { ruta: '/', texto: 'Inicio', icono: <HomeOutlined />, disponible: true },
   { ruta: '/documentos/nuevo', texto: 'Nuevo documento', icono: <DescriptionOutlined />, disponible: false },
   { ruta: '/historial', texto: 'Historial', icono: <HistoryOutlined />, disponible: false },
-  { ruta: '/clientes', texto: 'Clientes', icono: <PeopleAltOutlined />, disponible: false },
+  { ruta: '/clientes', texto: 'Clientes', icono: <PeopleAltOutlined />, disponible: true },
 ]
 
 export function LayoutPrincipal() {

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { SesionProvider } from '../features/auth/SesionProvider'
 import { LoginPage } from '../features/auth/pages/LoginPage'
+import { ClientesPage } from '../features/clientes/pages/ClientesPage'
 import { InicioPage } from '../features/inicio/pages/InicioPage'
 import { LayoutPrincipal } from './LayoutPrincipal'
 import { RutaProtegida } from './RutaProtegida'
@@ -27,6 +28,7 @@ export function App() {
               <Route element={<RutaProtegida />}>
                 <Route element={<LayoutPrincipal />}>
                   <Route index element={<InicioPage />} />
+                  <Route path="clientes" element={<ClientesPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
