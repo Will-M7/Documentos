@@ -5,8 +5,10 @@ import { SesionProvider } from '../features/auth/SesionProvider'
 import { LoginPage } from '../features/auth/pages/LoginPage'
 import { ClientesPage } from '../features/clientes/pages/ClientesPage'
 import { InicioPage } from '../features/inicio/pages/InicioPage'
+import { VariablesPage } from '../features/variables/pages/VariablesPage'
 import { LayoutPrincipal } from './LayoutPrincipal'
 import { RutaProtegida } from './RutaProtegida'
+import { RutaSoloAdmin } from './RutaSoloAdmin'
 import { tema } from './tema'
 
 const queryClient = new QueryClient({
@@ -29,6 +31,9 @@ export function App() {
                 <Route element={<LayoutPrincipal />}>
                   <Route index element={<InicioPage />} />
                   <Route path="clientes" element={<ClientesPage />} />
+                  <Route element={<RutaSoloAdmin />}>
+                    <Route path="variables" element={<VariablesPage />} />
+                  </Route>
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

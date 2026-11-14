@@ -1,8 +1,12 @@
+import DataObjectOutlined from '@mui/icons-material/DataObjectOutlined'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
 import HomeOutlined from '@mui/icons-material/HomeOutlined'
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined'
+import ManageAccountsOutlined from '@mui/icons-material/ManageAccountsOutlined'
 import PeopleAltOutlined from '@mui/icons-material/PeopleAltOutlined'
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined'
+import SnippetFolderOutlined from '@mui/icons-material/SnippetFolderOutlined'
 import {
   AppBar,
   Box,
@@ -12,6 +16,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  ListSubheader,
   Toolbar,
   Tooltip,
   Typography,
@@ -29,16 +34,24 @@ interface Opcion {
   disponible: boolean
 }
 
-/** Las opciones marcadas como no disponibles se activan en la fase 1. */
-const OPCIONES: Opcion[] = [
+const ATENCION: Opcion[] = [
   { ruta: '/', texto: 'Inicio', icono: <HomeOutlined />, disponible: true },
   { ruta: '/documentos/nuevo', texto: 'Nuevo documento', icono: <DescriptionOutlined />, disponible: false },
   { ruta: '/historial', texto: 'Historial', icono: <HistoryOutlined />, disponible: false },
   { ruta: '/clientes', texto: 'Clientes', icono: <PeopleAltOutlined />, disponible: true },
 ]
 
+/** Solo visibles para ADMIN. */
+const ADMINISTRACION: Opcion[] = [
+  { ruta: '/plantillas', texto: 'Plantillas', icono: <SnippetFolderOutlined />, disponible: false },
+  { ruta: '/variables', texto: 'Variables', icono: <DataObjectOutlined />, disponible: true },
+  { ruta: '/usuarios', texto: 'Usuarios', icono: <ManageAccountsOutlined />, disponible: false },
+  { ruta: '/configuracion', texto: 'Configuración', icono: <SettingsOutlined />, disponible: false },
+]
+
 export function LayoutPrincipal() {
   const { sesion, cerrar } = useSesion()
+  const esAdmin = sesion?.usuario.rol === 'ADMIN'
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -62,26 +75,39 @@ export function LayoutPrincipal() {
       >
         <Toolbar />
         <List component="nav">
-          {OPCIONES.map((opcion) => (
-            <ListItemButton
-              key={opcion.ruta}
-              component={NavLink}
-              to={opcion.ruta}
-              end
-              disabled={!opcion.disponible}
-              sx={{ '&.active': { bgcolor: 'action.selected' } }}
-            >
-              <ListItemIcon>{opcion.icono}</ListItemIcon>
-              <ListItemText primary={opcion.texto} />
-            </ListItemButton>
+          {ATENCION.map((opcion) => (
+            <OpcionMenu key={opcion.ruta} opcion={opcion} />
           ))}
+          {esAdmin && (
+            <>
+              <ListSubheader>Administración</ListSubheader>
+              {ADMINISTRACION.map((opcion) => (
+                <OpcionMenu key={opcion.ruta} opcion={opcion} />
+              ))}
+            </>
+          )}
         </List>
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, minWidth: 0 }}>
         <Toolbar />
         <Outlet />
       </Box>
     </Box>
+  )
+}
+
+function OpcionMenu({ opcion }: { opcion: Opcion }) {
+  return (
+    <ListItemButton
+      component={NavLink}
+      to={opcion.ruta}
+      end={opcion.ruta === '/'}
+      disabled={!opcion.disponible}
+      sx={{ '&.active': { bgcolor: 'action.selected' } }}
+    >
+      <ListItemIcon>{opcion.icono}</ListItemIcon>
+      <ListItemText primary={opcion.texto} />
+    </ListItemButton>
   )
 }
