@@ -2,7 +2,7 @@
 
 Sistema para negocios tipo notaría: genera documentos (declaraciones juradas, cartas poder, contratos…) a partir de plantillas Word, completando los datos de las personas por DNI/RUC, con historial y registro de clientes.
 
-> **Estado:** fase 1 (MVP de oficina). Funcionan: usuarios y roles, clientes, catálogo de variables, plantillas Word versionadas, generación de documentos (Word, y PDF si hay LibreOffice), historial y consultas DNI/RUC con Factiliza/APIsPERU. La versión anterior (escritorio JavaFX) está en la rama `v1`.
+> **Estado:** fases 1 y 2 completas y portal de clientes en versión de oficina. Funcionan: usuarios y roles, clientes, catálogo de variables, plantillas Word versionadas, generación de documentos con vista previa (Word, y PDF si hay LibreOffice), historial, consultas DNI/RUC con varias APIs gratuitas o pagadas (Decolecta, APIsPERU, Factiliza), auditoría, panel con números del negocio, portal para que los clientes pidan documentos, importación de datos de la v1 y respaldos visibles desde la web. La versión anterior (escritorio JavaFX) está en la rama `v1`.
 
 ## Arquitectura en una línea
 
@@ -12,7 +12,7 @@ Sistema para negocios tipo notaría: genera documentos (declaraciones juradas, c
 |---|---|---|
 | Backend | [`backend/`](backend) | Java 21, Spring Boot 4, Spring Security (JWT), JPA, Flyway |
 | Frontend | [`frontend/`](frontend) | React 19, TypeScript, Vite, MUI, TanStack Query |
-| Base de datos | [`backend/src/main/resources/db/migration/`](backend/src/main/resources/db/migration) | PostgreSQL 17 (migraciones Flyway) |
+| Base de datos | [`backend/src/main/resources/db/migration/`](backend/src/main/resources/db/migration) | PostgreSQL 16 o 17 (migraciones Flyway) |
 | Instalación en servidor | [`infra/`](infra) | Docker Compose (opcional) |
 | CI | [`.github/workflows/`](.github/workflows) | GitHub Actions |
 

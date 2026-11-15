@@ -1,6 +1,6 @@
 # Arquitectura — Estudio Documental v2
 
-> **Estado:** fases 0 y 1 implementadas (ver [hoja de ruta](#18-hoja-de-ruta)) · **Última actualización:** 14 de noviembre de 2026
+> **Estado:** fases 0, 1 y 2 implementadas y la fase 3 (portal) en su versión de oficina (ver [hoja de ruta](#18-hoja-de-ruta)) · **Última actualización:** 14 de noviembre de 2026
 > **Reemplaza a:** la aplicación de escritorio JavaFX + SQLite (v1), conservada en la rama `v1` (ver su `CONTEXTO.md`).
 
 Este documento define cómo se va a construir la nueva versión: qué tecnologías se usan y por qué, cómo se organiza el código, cómo es la base de datos y en qué orden se construye. Es la referencia para tomar decisiones; si algo cambia, se actualiza aquí primero.
@@ -47,7 +47,9 @@ Este documento define cómo se va a construir la nueva versión: qué tecnologí
 - Generación de DOCX y PDF, impresión e historial.
 - Auditoría y respaldos.
 
-**Fuera de alcance por ahora (diseñado para agregarse después):** portal web para clientes finales, app móvil, pagos, firma digital, varias sedes.
+**Agregado después del MVP:** portal para que el cliente final pida su documento sin crear cuenta (con código de seguimiento), panel con números del negocio, importación de datos de la v1 y respaldos visibles desde la web.
+
+**Fuera de alcance por ahora (diseñado para agregarse después):** cuentas de cliente con contraseña, app móvil, pagos, firma digital, varias sedes.
 
 ---
 
@@ -168,6 +170,10 @@ El backend se organiza **por módulo de negocio**, no por tipo de clase. Cada m�
 | `consultas` | DNI/RUC: caché local y proveedores externos con respaldo |
 | `archivos` | Guardar y leer archivos (disco hoy, nube mañana) |
 | `auditoria` | Registro de quién hizo qué y cuándo |
+| `estadisticas` | Números del panel de Inicio (solo lectura; consulta varias tablas con SQL, excepción documentada a la regla de módulos) |
+| `solicitudes` | Portal de clientes: plantillas públicas, solicitudes con código, bandeja de la oficina |
+| `importacion` | Traer clientes y plantillas exportados desde la v1 (ZIP) |
+| `respaldos` | Lista los respaldos de `respaldo.cmd` y permite lanzar uno desde la web |
 | `comun` | Errores, utilidades, configuración compartida |
 
 ### 6.2 Capas dentro de cada módulo
@@ -241,8 +247,9 @@ POST   /api/v1/credenciales                   ADMIN
 PUT    /api/v1/credenciales/{id}              ADMIN
 DELETE /api/v1/credenciales/{id}              ADMIN
 
-POST   /api/v1/documentos                     Generar
-GET    /api/v1/documentos?q=&desde=&hasta=    Historial
+POST   /api/v1/documentos                     Generar (con solicitudId, marca la solicitud como atendida)
+POST   /api/v1/documentos/vista-previa        DOCX sin guardar ni numerar
+GET    /api/v1/documentos?q=&desde=&hasta=&clienteId=    Historial
 GET    /api/v1/documentos/{id}
 GET    /api/v1/documentos/{id}/docx
 GET    /api/v1/documentos/{id}/pdf?verEnLinea=
@@ -252,6 +259,22 @@ GET    /api/v1/usuarios                       ADMIN
 POST   /api/v1/usuarios                       ADMIN
 PUT    /api/v1/usuarios/{id}                  ADMIN
 PUT    /api/v1/usuarios/{id}/clave            ADMIN · restablece y desbloquea
+
+GET    /api/v1/auditoria                      ADMIN
+GET    /api/v1/estadisticas                   Resumen del panel de Inicio
+
+GET    /api/v1/publico/plantillas             Público · solo plantillas marcadas "En el portal"
+GET    /api/v1/publico/plantillas/{id}        Público
+POST   /api/v1/publico/solicitudes            Público · 5 cada 10 min por IP; devuelve el código S-XXXXXX
+GET    /api/v1/publico/solicitudes/{codigo}   Público · solo estado, sin datos personales
+GET    /api/v1/solicitudes?estado=            Bandeja de la oficina
+GET    /api/v1/solicitudes/pendientes         Contador para el menú
+GET    /api/v1/solicitudes/{id}               Con los datos enviados
+POST   /api/v1/solicitudes/{id}/rechazar      Con motivo (lo ve el cliente)
+
+POST   /api/v1/importacion/v1                 ADMIN · multipart (archivo ZIP de la v1)
+GET    /api/v1/respaldos                      ADMIN · últimos respaldos y si hay uno reciente
+POST   /api/v1/respaldos                      ADMIN · ejecuta respaldo.cmd
 ```
 
 ---
@@ -461,7 +484,7 @@ La conversión a PDF se hace con una cola interna de 1–2 procesos de LibreOffi
 ## 10. Consultas DNI/RUC
 
 1. **Caché primero:** se busca en `cliente`. Si existe, se usa sin costo.
-2. **Proveedores en orden:** Factiliza y luego APIsPERU (orden configurable). Si uno falla por red, tiempo o límite de uso, se prueba el siguiente.
+2. **Proveedores en orden:** Decolecta (100 gratis al mes), APIsPERU y Factiliza, en el orden de prioridad que fije el administrador. Si uno falla por red, tiempo o se le acabó el cupo, se prueba el siguiente; un proveedor agotado se salta hasta el mes siguiente.
 3. **Adaptadores:** cada proveedor implementa la interfaz `ProveedorConsulta` y traduce su respuesta a un formato común (`nombres`, `apellidos`, `direccion`…). Agregar un proveedor nuevo no toca el resto del sistema.
 4. **Resultado:** se guarda o actualiza el cliente (sin borrar datos existentes ante respuestas parciales) y se registra en `consulta_externa`.
 5. **Límites:** 15 s por llamada y 10 consultas pagadas por usuario y por minuto (`CONSULTAS_POR_MINUTO`), para controlar el costo.
@@ -487,19 +510,22 @@ El sistema maneja datos personales (nombres, DNI, domicilios) protegidos por la 
 
 ## 12. Frontend
 
-### 12.1 Pantallas (fase 1)
+### 12.1 Pantallas
 
 | Pantalla | Rol | Contenido |
 |---|---|---|
 | Iniciar sesión | Todos | |
-| Inicio | Todos | Accesos rápidos y últimos documentos |
+| Inicio | Todos | Accesos rápidos, últimos documentos, números del negocio; aviso de respaldos atrasados (ADMIN) |
 | Nuevo documento | Todos | Elegir plantilla → formulario por participante con búsqueda DNI/RUC → vista previa → imprimir/descargar |
 | Historial | Todos | Filtros por fecha, cliente y plantilla; reimprimir; regenerar |
-| Clientes | Todos | Buscar, ver documentos de un cliente, editar |
+| Clientes | Todos | Buscar, ver documentos de un cliente, editar; dar de baja (ADMIN) |
+| Solicitudes | Todos | Pedidos del portal: atender (abre Nuevo documento ya completado) o rechazar con motivo |
 | Plantillas | ADMIN | Subir DOCX, revisar variables detectadas, participantes, versiones |
 | Variables | ADMIN | Catálogo compartido |
 | Usuarios | ADMIN | Alta, baja, cambio de rol, restablecer contraseña |
-| Configuración | ADMIN | Credenciales de API, respaldos, datos del negocio |
+| Configuración | ADMIN | Credenciales de API, PDF, respaldos, importar datos de la v1 |
+| Auditoría | ADMIN | Quién hizo qué y cuándo |
+| Portal `/portal` | Público | Elegir documento, enviar datos con consentimiento (Ley 29733), consultar estado con el código |
 
 ### 12.2 Organización
 
@@ -624,8 +650,8 @@ El administrador puede lanzar un respaldo manual y ver el estado del último des
 |---|---|---|
 | **0. Fundaciones** ✅ | Esqueleto que compila y se instala | Monorepo; backend con login y salud; Flyway; frontend con login; Docker Compose; CI |
 | **1. MVP oficina** ✅ | Reemplazar la v1 en el uso diario | Clientes, consultas DNI/RUC, plantillas con participantes, generación DOCX/PDF, historial, usuarios |
-| **2. Operación** | Usarlo con tranquilidad | Respaldos automáticos, auditoría visible, migración de datos v1, guía de instalación, pruebas en la oficina real. |
-| **3. Portal de clientes** | Que el cliente final haga su trámite | Rol `CLIENTE`, registro, plantillas públicas, revisión por el operador antes de entregar, despliegue en internet con HTTPS |
+| **2. Operación** ✅ | Usarlo con tranquilidad | Respaldos programados y visibles desde la web, auditoría visible, importación de datos v1, guía de instalación. Falta: pruebas en la oficina real |
+| **3. Portal de clientes** 🟡 | Que el cliente final haga su trámite | Hecho: plantillas públicas, solicitud sin cuenta con código de seguimiento, revisión por el operador antes de generar. Falta: despliegue en internet con HTTPS y, si se pide, cuentas de cliente (rol `CLIENTE`) |
 | **4. App móvil** | Lo mismo desde el celular | React Native sobre la misma API |
 
 Cada fase termina con una versión instalable y su documentación al día.

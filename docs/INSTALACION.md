@@ -118,6 +118,7 @@ Reinicie la PC y compruebe que http://localhost:8080 responde sin abrir nada a m
 2. Prográmelo a diario en el **Programador de tareas**: desencadenador *Diariamente* a las 21:00; acción `C:\EstudioDocumental\respaldo.cmd`.
 3. **Copie la carpeta `respaldos` fuera de la PC** al menos una vez por semana: disco externo, Google Drive o OneDrive. Un respaldo en la misma PC no sirve si el disco se daña.
 4. Una vez al mes, pruebe restaurar en otra PC (ver abajo).
+5. En la web, **Configuración → Respaldos** muestra los últimos respaldos y si están completos, y tiene el botón **Respaldar ahora**. Si pasan más de 2 días sin un respaldo completo, el administrador ve un aviso en **Inicio**.
 
 ### Restaurar
 
@@ -125,7 +126,20 @@ Reinicie la PC y compruebe que http://localhost:8080 responde sin abrir nada a m
 2. En `C:\EstudioDocumental`, desde una consola: `restaurar.cmd respaldos\20261114_2100` y escriba `SI`.
 3. Inicie de nuevo con `iniciar.cmd`.
 
-## 9. Actualizar a una versión nueva
+## 9. Traer los datos de la versión anterior (v1)
+
+Se hace una sola vez, al cambiar de la aplicación de escritorio a esta.
+
+1. En la aplicación de escritorio, **Configuración**: use **Exportar Clientes** y **Exportar Plantillas** (alcance *Todas*). Puede exportar ambas en un solo ZIP o en dos.
+2. En la web, como administrador: **Configuración → Traer datos de la versión anterior** → **Elegir ZIP** → **Importar**.
+3. Lea el resumen: cuántos clientes y plantillas entraron y cuáles no (por ejemplo, un DNI con menos de 8 dígitos). Puede corregir el dato en la v1, volver a exportar e importar de nuevo: lo que ya entró no se duplica.
+4. Revise cada plantilla importada en **Plantillas**: el Word y las variables (etiqueta y tipo) se traen, pero los participantes hay que configurarlos en la v2 (marcas como `{{otorgante.nombre_completo}}`).
+
+## 10. Portal de clientes
+
+Los clientes pueden pedir documentos en `http://NOMBRE-PC:8080/portal` (solo se ofrecen las plantillas marcadas **En el portal**). Así como está, el portal funciona **dentro de la red de la oficina** (por ejemplo, en una PC o tablet de recepción). Para abrirlo a internet hace falta un dominio con HTTPS y un servidor publicado; no exponga el puerto 8080 directamente a internet.
+
+## 11. Actualizar a una versión nueva
 
 1. Haga un respaldo (`respaldo.cmd`).
 2. En la PC de desarrollo: `git pull` y `scripts\windows\empaquetar.cmd`.
@@ -133,11 +147,13 @@ Reinicie la PC y compruebe que http://localhost:8080 responde sin abrir nada a m
 4. Reemplace `app.jar` y la carpeta `web\` por las nuevas. **No toque `config.cmd`, `datos\` ni `respaldos\`**.
 5. Inicie el sistema. Los cambios de la base se aplican solos al arrancar (migraciones).
 
-## 10. Lista de verificación
+## 12. Lista de verificación
 
 - [ ] http://localhost:8080 abre en el servidor y http://NOMBRE-PC:8080 en otra PC
 - [ ] Se cambió la contraseña inicial del administrador
 - [ ] `config.cmd` está guardado en un lugar seguro
 - [ ] El sistema arranca solo al reiniciar la PC
 - [ ] El respaldo diario está programado y se copia fuera de la PC
+- [ ] **Configuración → Respaldos** muestra el último respaldo como completo
+- [ ] (Si venían de la v1) Clientes y plantillas importados y plantillas revisadas
 - [ ] (Opcional) LibreOffice instalado: **Configuración** muestra “se generan PDF”
