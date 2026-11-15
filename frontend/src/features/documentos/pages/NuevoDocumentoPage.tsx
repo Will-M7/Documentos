@@ -15,7 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router'
 import { EncabezadoPagina } from '../../../components/EncabezadoPagina'
@@ -38,20 +38,30 @@ import { CampoVariable } from '../components/CampoVariable'
 import { ParticipanteCampos } from '../components/ParticipanteCampos'
 import { VistaPreviaDialog } from '../components/VistaPreviaDialog'
 import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
+import { obtenerSolicitud, type SolicitudResumen } from '../../solicitudes/api'
 
 /**
  * Flujo principal: elegir plantilla → completar datos → generar.
- * `?plantilla=<id>` abre directo el formulario; `?desde=<documento>` lo rellena con un documento anterior.
+ * `?plantilla=<id>` abre directo el formulario; `?desde=<documento>` lo rellena con un documento anterior;
+ * `?solicitud=<id>` lo rellena con lo que envió el cliente desde el portal y, al generar, la marca atendida.
  */
 export function NuevoDocumentoPage() {
   const [parametros, setParametros] = useSearchParams()
   const plantillaId = parametros.get('plantilla')
   const desde = parametros.get('desde')
+  const solicitud = parametros.get('solicitud')
 
-  if (!plantillaId && !desde) {
+  if (!plantillaId && !desde && !solicitud) {
     return <ElegirPlantilla onElegir={(id) => setParametros({ plantilla: id })} />
   }
-  return <CargarFormulario key={`${plantillaId}-${desde}`} plantillaId={plantillaId} desde={desde} />
+  return (
+    <CargarFormulario
+      key={`${plantillaId}-${desde}-${solicitud}`}
+      plantillaId={plantillaId}
+      desde={desde}
+      solicitudId={solicitud}
+    />
+  )
 }
 
 function ElegirPlantilla({ onElegir }: { onElegir: (id: string) => void }) {
@@ -115,33 +125,52 @@ interface ValoresIniciales {
   plantilla: PlantillaDetalle
   variables: Record<string, string>
   participantes: Record<string, DatosCliente>
+  /** Solicitud del portal que se está atendiendo. */
+  solicitud: SolicitudResumen | null
 }
 
 /** Carga la plantilla (y, si se pide, el documento anterior y sus clientes) antes de mostrar el formulario. */
-function CargarFormulario({ plantillaId, desde }: { plantillaId: string | null; desde: string | null }) {
+function CargarFormulario({
+  plantillaId,
+  desde,
+  solicitudId,
+}: {
+  plantillaId: string | null
+  desde: string | null
+  solicitudId: string | null
+}) {
   const consulta = useQuery({
-    queryKey: ['formulario-documento', plantillaId, desde],
+    queryKey: ['formulario-documento', plantillaId, desde, solicitudId],
     queryFn: async (): Promise<ValoresIniciales> => {
       const anterior = desde ? await obtenerDocumento(desde) : null
-      const plantilla = await obtenerPlantilla(plantillaId ?? anterior!.resumen.plantillaId)
+      const solicitud = solicitudId ? await obtenerSolicitud(solicitudId) : null
+      const plantilla = await obtenerPlantilla(
+        plantillaId ?? solicitud?.resumen.plantillaId ?? anterior!.resumen.plantillaId,
+      )
       const participantes: Record<string, DatosCliente> = {}
       for (const p of plantilla.participantes) {
         const previo = anterior?.resumen.participantes.find((x) => x.participante === p.clave)
         const cliente = previo ? await obtenerCliente(previo.clienteId).catch(() => null) : null
-        participantes[p.clave] = cliente
-          ? ({ ...PARTICIPANTE_VACIO, ...sinNulos(cliente) } as DatosCliente)
-          : {
-              ...PARTICIPANTE_VACIO,
-              tipo: p.tipoCliente === 'EMPRESA' ? 'EMPRESA' : 'PERSONA',
-              tipoDocumento: p.tipoCliente === 'EMPRESA' ? 'RUC' : 'DNI',
-            }
+        const enviado = solicitud?.datos.participantes?.[p.clave]
+        participantes[p.clave] = enviado
+          ? ({ ...PARTICIPANTE_VACIO, ...sinNulos(enviado) } as DatosCliente)
+          : cliente
+            ? ({ ...PARTICIPANTE_VACIO, ...sinNulos(cliente) } as DatosCliente)
+            : {
+                ...PARTICIPANTE_VACIO,
+                tipo: p.tipoCliente === 'EMPRESA' ? 'EMPRESA' : 'PERSONA',
+                tipoDocumento: p.tipoCliente === 'EMPRESA' ? 'RUC' : 'DNI',
+              }
       }
       const variables: Record<string, string> = {}
       for (const v of plantilla.variables) {
         variables[v.clave] =
-          anterior?.variables[v.clave] ?? v.valorDefecto ?? (v.tipo === 'FECHA' ? hoy() : '')
+          solicitud?.datos.variables?.[v.clave] ??
+          anterior?.variables[v.clave] ??
+          v.valorDefecto ??
+          (v.tipo === 'FECHA' ? hoy() : '')
       }
-      return { plantilla, variables, participantes }
+      return { plantilla, variables, participantes, solicitud: solicitud?.resumen ?? null }
     },
     staleTime: Infinity,
   })
@@ -159,11 +188,22 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
   const [participantes, setParticipantes] = useState(iniciales.participantes)
   const [resultado, setResultado] = useState<DocumentoDetalle | null>(null)
 
-  const pedido = { plantillaId: plantilla.id, titulo, variables, participantes }
+  const pedido = {
+    plantillaId: plantilla.id,
+    titulo,
+    variables,
+    participantes,
+    solicitudId: iniciales.solicitud?.id ?? null,
+  }
+  const queryClient = useQueryClient()
   const generar = useMutation({
     mutationFn: () => generarDocumento(pedido),
     onSuccess: (documento) => {
       previa.reset()
+      if (iniciales.solicitud) {
+        queryClient.invalidateQueries({ queryKey: ['solicitudes'] })
+        queryClient.invalidateQueries({ queryKey: ['solicitudes-pendientes'] })
+      }
       setResultado(documento)
       window.scrollTo({ top: 0 })
     },
@@ -184,6 +224,16 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
       <Button component={RouterLink} to="/documentos/nuevo" startIcon={<ArrowBack />} sx={{ mb: 2 }}>
         Elegir otra plantilla
       </Button>
+      {iniciales.solicitud && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Atendiendo la solicitud <strong>{iniciales.solicitud.codigo}</strong> de{' '}
+          {iniciales.solicitud.contactoNombre}
+          {[iniciales.solicitud.contactoTelefono, iniciales.solicitud.contactoCorreo].filter(Boolean).length >
+            0 &&
+            ` (${[iniciales.solicitud.contactoTelefono, iniciales.solicitud.contactoCorreo].filter(Boolean).join(' · ')})`}
+          . Revise los datos que envió el cliente; al generar, la solicitud queda atendida.
+        </Alert>
+      )}
       <EncabezadoPagina
         titulo={plantilla.nombre}
         descripcion="Busque a cada persona por su documento: si ya está registrada, sus datos se completan solos."

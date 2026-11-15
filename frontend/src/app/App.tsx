@@ -41,6 +41,22 @@ const AuditoriaPage = lazy(() =>
   import('../features/auditoria/pages/AuditoriaPage').then((m) => ({ default: m.AuditoriaPage })),
 )
 
+const SolicitudesPage = lazy(() =>
+  import('../features/solicitudes/pages/SolicitudesPage').then((m) => ({ default: m.SolicitudesPage })),
+)
+const PortalLayout = lazy(() =>
+  import('../features/portal/PortalLayout').then((m) => ({ default: m.PortalLayout })),
+)
+const PortalInicioPage = lazy(() =>
+  import('../features/portal/pages/PortalInicioPage').then((m) => ({ default: m.PortalInicioPage })),
+)
+const PortalPedirPage = lazy(() =>
+  import('../features/portal/pages/PortalPedirPage').then((m) => ({ default: m.PortalPedirPage })),
+)
+const PortalEstadoPage = lazy(() =>
+  import('../features/portal/pages/PortalEstadoPage').then((m) => ({ default: m.PortalEstadoPage })),
+)
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, refetchOnWindowFocus: false },
@@ -58,12 +74,19 @@ export function App() {
             <Suspense fallback={<CircularProgress sx={{ m: 4 }} />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                {/* Portal público: los clientes piden documentos sin usuario */}
+                <Route path="/portal" element={<PortalLayout />}>
+                  <Route index element={<PortalInicioPage />} />
+                  <Route path="pedir/:id" element={<PortalPedirPage />} />
+                  <Route path="estado" element={<PortalEstadoPage />} />
+                </Route>
                 <Route element={<RutaProtegida />}>
                   <Route element={<LayoutPrincipal />}>
                     <Route index element={<InicioPage />} />
                     <Route path="documentos/nuevo" element={<NuevoDocumentoPage />} />
                     <Route path="historial" element={<HistorialPage />} />
                     <Route path="clientes" element={<ClientesPage />} />
+                    <Route path="solicitudes" element={<SolicitudesPage />} />
                     <Route element={<RutaSoloAdmin />}>
                       <Route path="plantillas" element={<PlantillasPage />} />
                       <Route path="plantillas/:id" element={<PlantillaDetallePage />} />

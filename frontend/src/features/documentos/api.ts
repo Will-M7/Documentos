@@ -34,6 +34,8 @@ export interface PedidoDocumento {
   titulo: string
   variables: Record<string, string>
   participantes: Record<string, DatosCliente>
+  /** Solicitud del portal que se atiende con este documento. */
+  solicitudId?: string | null
 }
 
 export function generarDocumento(pedido: PedidoDocumento) {

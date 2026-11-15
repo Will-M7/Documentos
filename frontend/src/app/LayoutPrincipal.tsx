@@ -2,6 +2,7 @@ import DataObjectOutlined from '@mui/icons-material/DataObjectOutlined'
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
 import FactCheckOutlined from '@mui/icons-material/FactCheckOutlined'
 import HistoryOutlined from '@mui/icons-material/HistoryOutlined'
+import InboxOutlined from '@mui/icons-material/InboxOutlined'
 import HomeOutlined from '@mui/icons-material/HomeOutlined'
 import KeyOutlined from '@mui/icons-material/KeyOutlined'
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined'
@@ -11,6 +12,7 @@ import SettingsOutlined from '@mui/icons-material/SettingsOutlined'
 import SnippetFolderOutlined from '@mui/icons-material/SnippetFolderOutlined'
 import {
   AppBar,
+  Badge,
   Box,
   Drawer,
   IconButton,
@@ -23,9 +25,11 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { useQuery } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { useSesion } from '../features/auth/sesionContext'
+import { contarPendientes } from '../features/solicitudes/api'
 import { CambiarClaveDialog } from '../features/usuarios/components/CambiarClaveDialog'
 
 const ANCHO_MENU = 240
@@ -42,6 +46,7 @@ const ATENCION: Opcion[] = [
   { ruta: '/documentos/nuevo', texto: 'Nuevo documento', icono: <DescriptionOutlined />, disponible: true },
   { ruta: '/historial', texto: 'Historial', icono: <HistoryOutlined />, disponible: true },
   { ruta: '/clientes', texto: 'Clientes', icono: <PeopleAltOutlined />, disponible: true },
+  { ruta: '/solicitudes', texto: 'Solicitudes', icono: <InboxOutlined />, disponible: true },
 ]
 
 /** Solo visibles para ADMIN. */
@@ -57,6 +62,12 @@ export function LayoutPrincipal() {
   const { sesion, cerrar } = useSesion()
   const esAdmin = sesion?.usuario.rol === 'ADMIN'
   const [cambiandoClave, setCambiandoClave] = useState(false)
+  // Revisa cada minuto si llegaron pedidos nuevos del portal
+  const pendientes = useQuery({
+    queryKey: ['solicitudes-pendientes'],
+    queryFn: contarPendientes,
+    refetchInterval: 60_000,
+  })
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -90,7 +101,11 @@ export function LayoutPrincipal() {
         <Toolbar />
         <List component="nav">
           {ATENCION.map((opcion) => (
-            <OpcionMenu key={opcion.ruta} opcion={opcion} />
+            <OpcionMenu
+              key={opcion.ruta}
+              opcion={opcion}
+              aviso={opcion.ruta === '/solicitudes' ? pendientes.data?.pendientes : undefined}
+            />
           ))}
           {esAdmin && (
             <>
@@ -112,7 +127,7 @@ export function LayoutPrincipal() {
   )
 }
 
-function OpcionMenu({ opcion }: { opcion: Opcion }) {
+function OpcionMenu({ opcion, aviso }: { opcion: Opcion; aviso?: number }) {
   return (
     <ListItemButton
       component={NavLink}
@@ -123,6 +138,9 @@ function OpcionMenu({ opcion }: { opcion: Opcion }) {
     >
       <ListItemIcon>{opcion.icono}</ListItemIcon>
       <ListItemText primary={opcion.texto} />
+      {!!aviso && (
+        <Badge color="error" badgeContent={aviso} sx={{ mr: 1 }} aria-label={`${aviso} pendientes`} />
+      )}
     </ListItemButton>
   )
 }

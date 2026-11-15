@@ -173,6 +173,19 @@ function Detalle({ plantilla }: { plantilla: PlantillaDetalle }) {
                   }
                   label={edicion.activo ? 'Activa: se puede usar para generar' : 'Desactivada'}
                 />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={edicion.publica}
+                      onChange={(e) => setEdicion({ ...edicion, publica: e.target.checked })}
+                    />
+                  }
+                  label={
+                    edicion.publica
+                      ? 'En el portal: los clientes pueden pedirla desde internet'
+                      : 'No se ofrece en el portal de clientes'
+                  }
+                />
               </Stack>
             </CardContent>
           </Card>
@@ -303,6 +316,7 @@ function aEdicion(p: PlantillaDetalle): EdicionPlantilla {
     descripcion: p.descripcion ?? '',
     categoria: p.categoria ?? '',
     activo: p.activo,
+    publica: p.publica,
     participantes: p.participantes.map(({ clave, etiqueta, tipoCliente }) => ({
       clave,
       etiqueta,

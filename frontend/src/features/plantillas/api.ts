@@ -10,6 +10,7 @@ export interface PlantillaResumen {
   categoria: string | null
   versionActual: number
   activo: boolean
+  publica: boolean
   actualizadoEn: string
 }
 
@@ -40,6 +41,7 @@ export interface EdicionPlantilla {
   descripcion: string
   categoria: string
   activo: boolean
+  publica: boolean
   participantes: { clave: string; etiqueta: string; tipoCliente: TipoParticipante }[]
 }
 

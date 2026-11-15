@@ -31,10 +31,13 @@ export function ParticipanteCampos({
   participante,
   valor,
   onCambiar,
+  conBusqueda = true,
 }: {
   participante: Participante
   valor: DatosCliente
   onCambiar: (datos: DatosCliente) => void
+  /** En el portal público no se busca en Clientes ni en proveedores: el cliente escribe sus datos. */
+  conBusqueda?: boolean
 }) {
   const [aviso, setAviso] = useState<{ tipo: 'success' | 'info'; texto: string; local: boolean } | null>(null)
   const usa = (campo: string) => participante.campos.some((c) => c.clave === campo)
@@ -105,21 +108,23 @@ export function ParticipanteCampos({
                 value={valor.numeroDocumento}
                 onChange={(e) => cambiar({ numeroDocumento: e.target.value })}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (conBusqueda && e.key === 'Enter') {
                     e.preventDefault()
                     buscar.mutate(false)
                   }
                 }}
               />
-              <Button
-                variant="outlined"
-                startIcon={<Search />}
-                loading={buscar.isPending}
-                disabled={!valor.numeroDocumento.trim()}
-                onClick={() => buscar.mutate(false)}
-              >
-                Buscar
-              </Button>
+              {conBusqueda && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Search />}
+                  loading={buscar.isPending}
+                  disabled={!valor.numeroDocumento.trim()}
+                  onClick={() => buscar.mutate(false)}
+                >
+                  Buscar
+                </Button>
+              )}
             </Box>
           </Grid>
           {(aviso || buscar.error) && (
