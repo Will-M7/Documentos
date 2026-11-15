@@ -115,8 +115,9 @@ El usuario `operador1` ya existe. Para ingresar se usa el **usuario** `operador1
 | 17.12 | En la ventana de incógnito, consultar de nuevo el código | Estado **Atendida** |
 | 17.13 | Enviar otra solicitud → en la oficina **Rechazar** con un motivo | Pasa a **Rechazadas**; al consultar el código el cliente ve el motivo |
 | 17.14 | En el portal, consultar un código inventado (S-ZZZZZZ) | “No existe una solicitud con ese código.” |
-| 17.15 | Seguir enviando solicitudes seguidas (más de 5 en 10 minutos) | Aparece “Se enviaron demasiadas solicitudes desde esta conexión. Intente de nuevo en unos minutos.” (se libera solo a los 10 minutos) |
+| 17.15 | Enviar 6 solicitudes **correctas** seguidas (en menos de 10 minutos, desde la misma PC) | La sexta muestra “Se enviaron demasiadas solicitudes desde esta conexión…”. Los envíos con errores **no** cuentan. Se libera solo a los 10 minutos |
 | 17.16 | Desactivar **En el portal** en la plantilla y recargar el portal | Esa plantilla ya no aparece para los clientes |
+| 17.17 | Volver a abrir una solicitud ya atendida (por ejemplo con el botón Atrás del navegador) | Aviso amarillo “ya está atendida”; si genera, el documento no se vincula a la solicitud |
 
 ## Bloque 18: Traer datos de la versión anterior (v1)
 

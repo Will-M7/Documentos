@@ -8,8 +8,10 @@ call "%~dp0config.cmd"
 
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmm"') do set FECHA=%%i
 set DESTINO=%RESPALDOS_DIR%\%FECHA%
-mkdir "%DESTINO%"
+if not exist "%DESTINO%" mkdir "%DESTINO%"
 rem Marca de "en curso": si el respaldo falla a la mitad queda asi y la web lo muestra como incompleto
+rem (dos respaldos en el mismo minuto usan la misma carpeta: se borra la marca anterior)
+if exist "%DESTINO%\RESPALDO-OK.txt" del "%DESTINO%\RESPALDO-OK.txt"
 echo %FECHA%> "%DESTINO%\EN-CURSO.txt"
 
 echo [%FECHA%] Respaldando base de datos...

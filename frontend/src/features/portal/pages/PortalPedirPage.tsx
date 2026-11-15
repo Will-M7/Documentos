@@ -21,6 +21,7 @@ import type { DatosCliente } from '../../clientes/api'
 import { CampoVariable } from '../../documentos/components/CampoVariable'
 import { ParticipanteCampos } from '../../documentos/components/ParticipanteCampos'
 import { PARTICIPANTE_VACIO } from '../../documentos/participante'
+import { hoy } from '../../../lib/fechas'
 import { enviarSolicitud, plantillaPublica, type PlantillaPublica } from '../../solicitudes/api'
 
 export function PortalPedirPage() {
@@ -45,7 +46,9 @@ function Formulario({ plantilla }: { plantilla: PlantillaPublica }) {
     ),
   )
   const [variables, setVariables] = useState<Record<string, string>>(() =>
-    Object.fromEntries(plantilla.variables.map((v) => [v.clave, v.valorDefecto ?? ''])),
+    Object.fromEntries(
+      plantilla.variables.map((v) => [v.clave, v.valorDefecto ?? (v.tipo === 'FECHA' ? hoy() : '')]),
+    ),
   )
   const [contacto, setContacto] = useState({ nombre: '', telefono: '', correo: '' })
   const [acepta, setAcepta] = useState(false)

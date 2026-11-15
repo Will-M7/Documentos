@@ -38,6 +38,7 @@ import { CampoVariable } from '../components/CampoVariable'
 import { ParticipanteCampos } from '../components/ParticipanteCampos'
 import { VistaPreviaDialog } from '../components/VistaPreviaDialog'
 import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
+import { hoy } from '../../../lib/fechas'
 import { obtenerSolicitud, type SolicitudResumen } from '../../solicitudes/api'
 
 /**
@@ -188,12 +189,14 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
   const [participantes, setParticipantes] = useState(iniciales.participantes)
   const [resultado, setResultado] = useState<DocumentoDetalle | null>(null)
 
+  // Una solicitud ya atendida o rechazada no se vuelve a atender (el backend también lo impide)
+  const solicitudCerrada = !!iniciales.solicitud && iniciales.solicitud.estado !== 'PENDIENTE'
   const pedido = {
     plantillaId: plantilla.id,
     titulo,
     variables,
     participantes,
-    solicitudId: iniciales.solicitud?.id ?? null,
+    solicitudId: solicitudCerrada ? null : (iniciales.solicitud?.id ?? null),
   }
   const queryClient = useQueryClient()
   const generar = useMutation({
@@ -203,6 +206,8 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
       if (iniciales.solicitud) {
         queryClient.invalidateQueries({ queryKey: ['solicitudes'] })
         queryClient.invalidateQueries({ queryKey: ['solicitudes-pendientes'] })
+        // Si se vuelve a abrir esta solicitud, que se vea ya atendida
+        queryClient.removeQueries({ queryKey: ['formulario-documento'] })
       }
       setResultado(documento)
       window.scrollTo({ top: 0 })
@@ -224,7 +229,14 @@ function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
       <Button component={RouterLink} to="/documentos/nuevo" startIcon={<ArrowBack />} sx={{ mb: 2 }}>
         Elegir otra plantilla
       </Button>
-      {iniciales.solicitud && (
+      {solicitudCerrada && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          La solicitud <strong>{iniciales.solicitud!.codigo}</strong> ya está{' '}
+          {iniciales.solicitud!.estado === 'ATENDIDA' ? 'atendida' : 'rechazada'}. Puede usar sus datos, pero
+          este documento no quedará vinculado a ella.
+        </Alert>
+      )}
+      {iniciales.solicitud && !solicitudCerrada && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Atendiendo la solicitud <strong>{iniciales.solicitud.codigo}</strong> de{' '}
           {iniciales.solicitud.contactoNombre}
@@ -353,9 +365,4 @@ function agrupar(plantillas: PlantillaResumen[]) {
     ;(grupos[clave] ??= []).push(p)
     return grupos
   }, {})
-}
-
-function hoy() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

@@ -161,4 +161,27 @@ describe('Bandeja de solicitudes', () => {
     await screen.findByText(/Carta poder simple - Luis Rojas Paz/)
     expect(pedido).toMatchObject({ plantillaId: 'p1', solicitudId: 's1', variables: { lugar: 'Cusco' } })
   })
+
+  it('si la solicitud ya fue atendida avisa y no la vuelve a vincular', async () => {
+    let pedido: Record<string, unknown> | undefined
+    simularApi({
+      'GET /solicitudes/s9': () =>
+        respuestaJson(200, {
+          resumen: { ...resumen, id: 's9', estado: 'ATENDIDA', documentoId: 'd0' },
+          datos: { variables: { lugar: 'Cusco' }, participantes: {} },
+        }),
+      'GET /plantillas/p1': () =>
+        respuestaJson(200, { ...plantilla, versionActual: 1, activo: true, versiones: [] }),
+      'POST /documentos': (_, init) => {
+        pedido = JSON.parse(String(init!.body))
+        return respuestaJson(422, { status: 422, detail: 'Complete los datos' })
+      },
+    })
+    const usuario = userEvent.setup()
+    abrirComoAdmin('/documentos/nuevo?solicitud=s9')
+    expect(await screen.findByText(/ya está atendida/)).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: /generar documento/i }))
+    await screen.findByText('Complete los datos')
+    expect(pedido?.solicitudId).toBeNull()
+  })
 })

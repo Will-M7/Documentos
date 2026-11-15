@@ -104,7 +104,7 @@ export function SolicitudesPage() {
           <TableBody>
             {consulta.data?.contenido.map((s) => (
               <TableRow key={s.id} hover>
-                <TableCell sx={{ fontFamily: 'monospace' }}>{s.codigo}</TableCell>
+                <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{s.codigo}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   {new Date(s.creadoEn).toLocaleString('es-PE')}
                 </TableCell>
