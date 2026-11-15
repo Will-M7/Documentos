@@ -1,6 +1,6 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { abrirComoAdmin, paginaVacia, respuestaJson, simularApi } from '../../../test/utilidades'
 
 const ana = {
@@ -103,5 +103,54 @@ describe('Pantalla de clientes', () => {
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Guardar' }))
     await screen.findByText('Todavía no hay clientes registrados.')
     expect(actualizado).toMatchObject({ numeroDocumento: '41234567', telefono: '984111222' })
+  })
+
+  it('la ficha muestra los documentos del cliente y el admin puede darlo de baja', async () => {
+    let bajas = 0
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    simularApi({
+      'GET /clientes': () => respuestaJson(200, { ...paginaVacia, contenido: [ana], totalElementos: 1 }),
+      'GET /documentos': (url) => {
+        expect(url).toContain('clienteId=c1')
+        return respuestaJson(200, {
+          ...paginaVacia,
+          totalElementos: 1,
+          contenido: [
+            {
+              id: 'd1',
+              numero: 12,
+              titulo: 'Carta poder simple - Ana',
+              plantillaId: 'p1',
+              plantillaNombre: 'Carta poder simple',
+              usuarioNombre: 'Ana',
+              creadoEn: '2026-11-14T10:00:00Z',
+              tienePdf: false,
+              participantes: [
+                {
+                  participante: 'otorgante',
+                  etiqueta: 'Poderdante',
+                  clienteId: 'c1',
+                  nombre: 'Ana',
+                  documentoIdentidad: 'DNI 41234567',
+                },
+              ],
+            },
+          ],
+        })
+      },
+      'DELETE /clientes/c1': () => {
+        bajas++
+        return respuestaJson(204, null)
+      },
+    })
+    abrirComoAdmin('/clientes')
+
+    await userEvent.click(await screen.findByText('Ana María Quispe Rojas'))
+    const dialogo = await screen.findByRole('dialog')
+    expect(await within(dialogo).findByText('N.º 12 · Carta poder simple - Ana')).toBeInTheDocument()
+    expect(within(dialogo).getByText(/como Poderdante/)).toBeInTheDocument()
+
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }))
+    await waitFor(() => expect(bajas).toBe(1))
   })
 })

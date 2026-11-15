@@ -141,6 +141,27 @@ class DocumentoIntegrationTest extends PruebaIntegracion {
                 .andExpect(status().isUnprocessableContent());
     }
 
+    @Test
+    void seListanLosDocumentosDeUnCliente() throws Exception {
+        String token = tokenOperador();
+        String respuesta = mvc.perform(post("/api/v1/documentos")
+                        .header("Authorization", bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(pedido("41230011")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        java.util.List<String> ids =
+                JsonPath.read(respuesta, "$.resumen.participantes[?(@.participante == 'otorgante')].clienteId");
+        String clienteId = ids.get(0);
+
+        mvc.perform(get("/api/v1/documentos").param("clienteId", clienteId).header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].id").value((String) JsonPath.read(respuesta, "$.resumen.id")));
+    }
+
     private String pedido(String dni) {
         return """
                 {"plantillaId":"%s",

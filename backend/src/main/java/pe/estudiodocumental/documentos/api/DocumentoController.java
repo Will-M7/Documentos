@@ -88,9 +88,10 @@ class DocumentoController {
             @RequestParam(defaultValue = "") String q,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) UUID clienteId,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamano) {
-        var resultado = documentos.buscar(q, desde, hasta, pagina, tamano);
+        var resultado = documentos.buscar(q, desde, hasta, clienteId, pagina, tamano);
         Set<UUID> ids = new HashSet<>();
         resultado.forEach(d -> ids.add(d.getUsuarioId()));
         Map<UUID, String> nombres = usuarios.nombres(ids);

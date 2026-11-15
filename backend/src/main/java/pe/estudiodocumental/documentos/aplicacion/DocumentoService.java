@@ -168,6 +168,23 @@ public class DocumentoService {
 
     @Transactional(readOnly = true)
     public Page<Documento> buscar(String texto, LocalDate desde, LocalDate hasta, int pagina, int tamano) {
+        return buscar(texto, desde, hasta, null, pagina, tamano);
+    }
+
+    /** Historial; con {@code clienteId} solo los documentos de ese cliente (los demás filtros no se aplican). */
+    @Transactional(readOnly = true)
+    public Page<Documento> buscar(
+            String texto, LocalDate desde, LocalDate hasta, UUID clienteId, int pagina, int tamano) {
+        if (clienteId != null) {
+            Page<Documento> delCliente = documentos.buscarPorCliente(
+                    clienteId,
+                    PageRequest.of(
+                            Math.max(pagina, 0),
+                            Math.clamp(tamano, 1, 100),
+                            Sort.by("creadoEn").descending()));
+            delCliente.forEach(d -> d.getParticipantes().size());
+            return delCliente;
+        }
         Instant inicio = (desde == null ? LocalDate.of(2000, 1, 1) : desde)
                 .atStartOfDay(ZONA)
                 .toInstant();

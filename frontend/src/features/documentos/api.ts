@@ -55,6 +55,8 @@ export function buscarDocumentos(filtro: {
   hasta: string
   pagina: number
   tamano: number
+  /** Solo los documentos de este cliente. */
+  clienteId?: string
 }) {
   const params = new URLSearchParams({
     q: filtro.q,
@@ -63,6 +65,7 @@ export function buscarDocumentos(filtro: {
   })
   if (filtro.desde) params.set('desde', filtro.desde)
   if (filtro.hasta) params.set('hasta', filtro.hasta)
+  if (filtro.clienteId) params.set('clienteId', filtro.clienteId)
   return api<Pagina<DocumentoResumen>>(`/documentos?${params}`)
 }
 

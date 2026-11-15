@@ -5,6 +5,7 @@ import {
   Button,
   Dialog,
   DialogActions,
+  Divider,
   DialogContent,
   DialogTitle,
   Grid,
@@ -16,9 +17,12 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
+import { useSesion } from '../../auth/sesionContext'
+import { DocumentosDelCliente } from '../../documentos/components/DocumentosDelCliente'
 import {
   actualizarCliente,
   buscarPorDocumento,
+  darDeBajaCliente,
   crearCliente,
   ETIQUETA_DOCUMENTO,
   type Cliente,
@@ -62,6 +66,14 @@ export function ClienteFormDialog({
   const [encontrado, setEncontrado] = useState<Cliente | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const actual = cliente ?? encontrado
+  const esAdmin = useSesion().sesion?.usuario.rol === 'ADMIN'
+  const baja = useMutation({
+    mutationFn: darDeBajaCliente,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] })
+      cerrar()
+    },
+  })
 
   const guardar = useMutation({
     mutationFn: (datos: DatosCliente) => (actual ? actualizarCliente(actual.id, datos) : crearCliente(datos)),
@@ -107,6 +119,11 @@ export function ClienteFormDialog({
           {(aviso || buscar.error) && (
             <Alert severity={buscar.error ? 'error' : encontrado ? 'success' : 'info'} sx={{ mb: 2 }}>
               {buscar.error ? buscar.error.message : aviso}
+            </Alert>
+          )}
+          {baja.error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {baja.error.message}
             </Alert>
           )}
           {guardar.error && (
@@ -198,8 +215,31 @@ export function ClienteFormDialog({
               <TextField fullWidth type="email" label="Correo" {...register('correo')} />
             </Grid>
           </Grid>
+          {actual && (
+            <>
+              <Divider sx={{ my: 2 }} />
+              <DocumentosDelCliente clienteId={actual.id} />
+            </>
+          )}
         </DialogContent>
         <DialogActions>
+          {actual && esAdmin && (
+            <Button
+              color="error"
+              sx={{ mr: 'auto' }}
+              loading={baja.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `¿Dar de baja a ${actual.nombreCompleto}? Deja de aparecer en Clientes; sus documentos se conservan.`,
+                  )
+                )
+                  baja.mutate(actual.id)
+              }}
+            >
+              Dar de baja
+            </Button>
+          )}
           <Button onClick={cerrar}>Cancelar</Button>
           <Button type="submit" variant="contained" loading={guardar.isPending}>
             Guardar

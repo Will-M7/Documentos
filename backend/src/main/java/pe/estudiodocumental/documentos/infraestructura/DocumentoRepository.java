@@ -28,4 +28,9 @@ public interface DocumentoRepository extends JpaRepository<Documento, UUID> {
             @Param("desde") Instant desde,
             @Param("hasta") Instant hasta,
             Pageable pagina);
+
+    /** Documentos en los que participó un cliente, en cualquier rol. */
+    @Query("select d from Documento d where exists"
+            + " (select 1 from DocumentoParticipante p where p.documento = d and p.clienteId = :clienteId)")
+    Page<Documento> buscarPorCliente(@Param("clienteId") UUID clienteId, Pageable pagina);
 }
