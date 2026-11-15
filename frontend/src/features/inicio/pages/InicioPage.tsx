@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link as RouterLink } from 'react-router'
 import { useSesion } from '../../auth/sesionContext'
 import { Panel } from '../components/Panel'
+import { AvisoRespaldos } from '../../respaldos/Respaldos'
 import { buscarDocumentos } from '../../documentos/api'
 import { AccionesDocumento } from '../../documentos/components/AccionesDocumento'
 
@@ -32,6 +33,7 @@ export function InicioPage() {
       <Typography variant="h5" component="h1" gutterBottom>
         Hola, {sesion?.usuario.nombre}
       </Typography>
+      {sesion?.usuario.rol === 'ADMIN' && <AvisoRespaldos />}
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ height: '100%' }}>

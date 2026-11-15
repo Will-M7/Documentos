@@ -34,6 +34,11 @@ app:
   archivos:
     # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
     directorio: ${ARCHIVOS_DIR:./datos/archivos}
+  respaldos:
+    # Carpeta donde respaldo.cmd deja una subcarpeta AAAAMMDD_HHMM por respaldo. Vacío = no se muestran.
+    directorio: ${RESPALDOS_DIR:}
+    # Script que hace el respaldo; si se indica, el administrador puede respaldar desde la web.
+    script: ${RESPALDO_SCRIPT:}
   web:
     # Carpeta "dist" del frontend compilado. Si se indica, el backend sirve también la web en el mismo puerto
     # (instalación sin Docker). Vacío en desarrollo: la web la sirve Vite.

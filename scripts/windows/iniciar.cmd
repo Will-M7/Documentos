@@ -12,6 +12,9 @@ if not exist "%~dp0config.cmd" (
 )
 call "%~dp0config.cmd"
 
+rem Permite al administrador respaldar desde la web (Configuracion > Respaldos)
+set RESPALDO_SCRIPT=%~dp0respaldo.cmd
+
 if not exist "%ARCHIVOS_DIR%" mkdir "%ARCHIVOS_DIR%"
 if not exist "%~dp0logs" mkdir "%~dp0logs"
 
