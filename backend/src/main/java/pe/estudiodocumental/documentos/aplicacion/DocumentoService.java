@@ -24,6 +24,7 @@ import pe.estudiodocumental.clientes.dominio.TipoCliente;
 import pe.estudiodocumental.clientes.dominio.TipoDocumento;
 import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
+import pe.estudiodocumental.comun.eventos.DocumentoGenerado;
 import pe.estudiodocumental.comun.eventos.EventoAuditoria;
 import pe.estudiodocumental.documentos.dominio.Documento;
 import pe.estudiodocumental.documentos.infraestructura.ConversorPdf;
@@ -82,6 +83,18 @@ public class DocumentoService {
             Map<String, String> valoresIngresados,
             List<DatosParticipante> participantes,
             UUID usuarioId) {
+        return generar(plantillaId, titulo, valoresIngresados, participantes, usuarioId, null);
+    }
+
+    /** @param solicitudId solicitud del portal que se está atendiendo, o null. */
+    @Transactional
+    public Documento generar(
+            UUID plantillaId,
+            String titulo,
+            Map<String, String> valoresIngresados,
+            List<DatosParticipante> participantes,
+            UUID usuarioId,
+            UUID solicitudId) {
         Plantilla plantilla = plantillas.obtener(plantillaId);
         if (!plantilla.isActivo()) {
             throw new ReglaNegocioException("La plantilla está desactivada.");
@@ -123,6 +136,7 @@ public class DocumentoService {
                 "documento",
                 guardado.getId(),
                 "N.º %d · %s".formatted(guardado.getNumero(), guardado.getTitulo())));
+        eventos.publishEvent(new DocumentoGenerado(guardado.getId(), solicitudId, usuarioId));
         return guardado;
     }
 

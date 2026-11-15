@@ -17,6 +17,8 @@ public interface PlantillaRepository extends JpaRepository<Plantilla, UUID> {
 
     List<Plantilla> findByActivoTrueOrderByCategoriaAscNombreAsc();
 
+    List<Plantilla> findByActivoTrueAndPublicaTrueOrderByCategoriaAscNombreAsc();
+
     @Query("select v from PlantillaVersion v where v.plantillaId = :plantillaId order by v.numero desc")
     List<PlantillaVersion> versiones(UUID plantillaId);
 

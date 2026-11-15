@@ -37,6 +37,10 @@ public class Plantilla extends EntidadBase {
     @Column(nullable = false)
     private boolean activo = true;
 
+    /** Se ofrece en el portal de clientes. */
+    @Column(nullable = false)
+    private boolean publica;
+
     @OneToMany(mappedBy = "plantilla", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orden")
     private List<ParticipantePlantilla> participantes = new ArrayList<>();
@@ -65,6 +69,15 @@ public class Plantilla extends EntidadBase {
 
     public void activar(boolean activo) {
         this.activo = activo;
+    }
+
+    public void publicar(boolean publica) {
+        this.publica = publica;
+    }
+
+    /** Disponible para que el cliente final la pida desde el portal. */
+    public boolean isPublica() {
+        return publica;
     }
 
     /**

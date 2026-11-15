@@ -27,6 +27,7 @@ public final class PlantillaDtos {
             String categoria,
             int versionActual,
             boolean activo,
+            boolean publica,
             Instant actualizadoEn) {
 
         public static PlantillaResumen desde(Plantilla p) {
@@ -37,6 +38,7 @@ public final class PlantillaDtos {
                     p.getCategoria(),
                     p.getVersionActual(),
                     p.isActivo(),
+                    p.isPublica(),
                     p.getActualizadoEn());
         }
     }
@@ -80,6 +82,7 @@ public final class PlantillaDtos {
             String categoria,
             int versionActual,
             boolean activo,
+            boolean publica,
             List<ParticipanteDto> participantes,
             List<VariableDto> variables,
             List<VersionDto> versiones) {}
@@ -99,5 +102,7 @@ public final class PlantillaDtos {
             @Size(max = 500) String descripcion,
             @Size(max = 80) String categoria,
             boolean activo,
+            /** null = no cambiar. */
+            Boolean publica,
             @NotNull List<@Valid ConfigParticipanteRequest> participantes) {}
 }

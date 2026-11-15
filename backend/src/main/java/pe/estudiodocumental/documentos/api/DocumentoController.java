@@ -61,7 +61,12 @@ class DocumentoController {
     DocumentoDetalle generar(@Valid @RequestBody GenerarRequest s, @AuthenticationPrincipal Jwt token) {
         List<DatosParticipante> participantes = participantes(s);
         Documento documento = documentos.generar(
-                s.plantillaId(), s.titulo(), s.variables(), participantes, UUID.fromString(token.getSubject()));
+                s.plantillaId(),
+                s.titulo(),
+                s.variables(),
+                participantes,
+                UUID.fromString(token.getSubject()),
+                s.solicitudId());
         return detalle(documento);
     }
 

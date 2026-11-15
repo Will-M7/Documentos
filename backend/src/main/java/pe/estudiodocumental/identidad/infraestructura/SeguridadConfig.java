@@ -42,7 +42,13 @@ class SeguridadConfig {
                 .authorizeHttpRequests(auth -> auth.requestMatchers(
                                 HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/renovar", "/api/v1/auth/salir")
                         .permitAll()
-                        .requestMatchers("/api/docs", "/api/docs/**", "/actuator/health", "/actuator/health/**")
+                        .requestMatchers(
+                                "/api/docs",
+                                "/api/docs/**",
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                // Portal de clientes: público a propósito (ver PortalController)
+                                "/api/v1/publico/**")
                         .permitAll()
                         .requestMatchers("/api/**", "/actuator/**")
                         .authenticated()

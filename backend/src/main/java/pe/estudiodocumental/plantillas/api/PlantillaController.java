@@ -87,7 +87,8 @@ class PlantillaController {
         List<ConfiguracionParticipante> config = s.participantes().stream()
                 .map(p -> new ConfiguracionParticipante(p.clave(), p.etiqueta(), p.tipoCliente()))
                 .toList();
-        return detalle(plantillas.editar(id, s.nombre(), s.descripcion(), s.categoria(), s.activo(), config));
+        return detalle(
+                plantillas.editar(id, s.nombre(), s.descripcion(), s.categoria(), s.activo(), s.publica(), config));
     }
 
     @Operation(summary = "Descargar el DOCX de una versión")
@@ -113,6 +114,7 @@ class PlantillaController {
                 p.getCategoria(),
                 p.getVersionActual(),
                 p.isActivo(),
+                p.isPublica(),
                 p.getParticipantes().stream().map(ParticipanteDto::desde).toList(),
                 plantillas.variablesDe(p).stream().map(VariableDto::desde).toList(),
                 plantillas.versiones(p.getId()).stream().map(VersionDto::desde).toList());

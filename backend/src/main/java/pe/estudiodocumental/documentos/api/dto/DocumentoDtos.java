@@ -24,7 +24,8 @@ public final class DocumentoDtos {
             @NotNull(message = "Elija la plantilla") UUID plantillaId,
             @Size(max = 250) String titulo,
             Map<String, String> variables,
-            Map<String, @Valid ClienteRequest> participantes) {}
+            Map<String, @Valid ClienteRequest> participantes,
+            UUID solicitudId) {}
 
     public record ParticipanteDto(
             String participante, String etiqueta, UUID clienteId, String nombre, String documentoIdentidad) {}

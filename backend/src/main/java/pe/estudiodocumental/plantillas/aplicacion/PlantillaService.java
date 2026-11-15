@@ -64,6 +64,17 @@ public class PlantillaService {
                 : plantillas.findAllByOrderByCategoriaAscNombreAsc();
     }
 
+    /** Plantillas activas que se ofrecen en el portal de clientes, con sus participantes cargados. */
+    @Transactional(readOnly = true)
+    public List<Plantilla> publicas() {
+        List<Plantilla> lista = plantillas.findByActivoTrueAndPublicaTrueOrderByCategoriaAscNombreAsc();
+        lista.forEach(p -> {
+            p.getParticipantes().forEach(x -> x.getCampos().size());
+            p.getVariables().size();
+        });
+        return lista;
+    }
+
     @Transactional(readOnly = true)
     public Plantilla obtener(UUID id) {
         Plantilla plantilla =
@@ -113,6 +124,7 @@ public class PlantillaService {
             String descripcion,
             String categoria,
             boolean activo,
+            Boolean publica,
             List<ConfiguracionParticipante> participantes) {
         Plantilla plantilla = obtener(id);
         plantillas
@@ -123,6 +135,9 @@ public class PlantillaService {
                 });
         plantilla.editar(nombre, descripcion, categoria);
         plantilla.activar(activo);
+        if (publica != null) {
+            plantilla.publicar(publica);
+        }
         for (ConfiguracionParticipante c : participantes) {
             plantilla.participante(c.clave()).configurar(c.etiqueta(), c.tipoCliente());
         }
