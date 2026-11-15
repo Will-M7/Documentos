@@ -4,7 +4,7 @@ Cada bloque se prueba por separado, en orden. Solo incluye lo que falta: lo apro
 
 ## Antes de empezar
 
-1. Reiniciar el backend (cerrar con Ctrl+C y volver a abrir) para que aplique las migraciones nuevas V010 y V011:
+1. Reiniciar el backend (cerrar con Ctrl+C y volver a abrir) para que aplique las migraciones nuevas V010, V011 y V012:
 
    ```bash
    cd backend
@@ -77,6 +77,46 @@ El usuario `operador1` ya existe. Para ingresar se usa el **usuario** `operador1
 | 14.3 | Usar un DNI que no esté en Clientes → Vista previa → ir a **Clientes** | Esa persona **no** se registró todavía |
 | 14.4 | Vista previa sin completar Lugar | Mensaje “Complete «Lugar».” (mismas validaciones que al generar) |
 | 14.5 | Vista previa → **Generar documento** desde la ventana | “Documento n.º X generado”; ahora sí aparece en Historial y la persona en Clientes |
+
+## Bloque 15: Documentos del cliente y baja
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 15.1 | **Clientes** → abrir (editar) a una persona que ya tenga documentos | Aparece “Documentos de este cliente (N)” con la lista “N.º X · título”, la fecha y su papel (por ejemplo “como Poderdante”) |
+| 15.2 | Usar los botones de descarga junto a uno de esos documentos | Se descarga ese documento |
+| 15.3 | Abrir a una persona sin documentos | “Todavía no participa en ningún documento.” |
+| 15.4 | Como **admin**: botón **Dar de baja** → Aceptar | La persona deja de aparecer en Clientes; en **Historial** sus documentos siguen ahí |
+| 15.5 | Ingresar como **operador** y abrir un cliente | **No** aparece el botón Dar de baja |
+
+## Bloque 16: Panel de Inicio con números del negocio
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 16.1 | Menú **Inicio** | Cuadros: Documentos hoy, Documentos este mes, Clientes registrados y Consultas DNI/RUC este mes |
+| 16.2 | Generar un documento nuevo y volver a **Inicio** | “Documentos hoy” y “Documentos este mes” suben en 1 |
+| 16.3 | Mirar el gráfico **Documentos por mes** y pasar el mouse por una barra | Se ven los últimos 6 meses; al pasar el mouse aparece la cantidad |
+| 16.4 | Mirar **Plantillas más usadas este mes** | Aparecen las plantillas usadas, de la más usada a la menos |
+
+## Bloque 17: Portal de clientes (pedidos por internet)
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 17.1 | **Plantillas** → abrir una → activar **En el portal** → **Guardar cambios** | El interruptor queda en “En el portal: los clientes pueden pedirla desde internet” |
+| 17.2 | Menú **Solicitudes** | Aparece el enlace del portal (http://localhost:5173/portal) y el botón **Copiar enlace** |
+| 17.3 | Abrir ese enlace en una ventana **de incógnito** (sin iniciar sesión) | Se ve “¿Qué documento necesita?” con solo las plantillas marcadas en 17.1; no hay menú de la oficina |
+| 17.4 | Elegir el documento → completar datos de la persona y del documento → “Su nombre” | No hay botón **Buscar** (el cliente no gasta consultas) |
+| 17.5 | Intentar enviar sin marcar la casilla de la Ley 29733 | El botón **Enviar solicitud** está desactivado |
+| 17.6 | Marcar la casilla → **Enviar solicitud** | “Solicitud enviada” con un código tipo **S-XXXXXX**. Anotarlo |
+| 17.7 | Enviar otra solicitud dejando vacío un dato obligatorio (por ejemplo Lugar) | Mensaje que indica qué falta completar; no se envía |
+| 17.8 | **Consultar estado** (o “Consultar mi solicitud”) con el código | Estado **Pendiente** y el nombre del documento; no muestra datos personales |
+| 17.9 | Volver a la oficina (ventana normal) | El menú **Solicitudes** muestra un número rojo con las pendientes (puede tardar hasta 1 minuto o recargar la página) |
+| 17.10 | **Solicitudes** → pestaña Pendientes → **Atender** | Se abre Nuevo documento con un aviso azul “Atendiendo la solicitud S-…” y los datos del cliente ya completados |
+| 17.11 | Revisar los datos → **Generar documento** | Se genera; en **Solicitudes** pasa a la pestaña **Atendidas** y el número rojo baja |
+| 17.12 | En la ventana de incógnito, consultar de nuevo el código | Estado **Atendida** |
+| 17.13 | Enviar otra solicitud → en la oficina **Rechazar** con un motivo | Pasa a **Rechazadas**; al consultar el código el cliente ve el motivo |
+| 17.14 | En el portal, consultar un código inventado (S-ZZZZZZ) | “No existe una solicitud con ese código.” |
+| 17.15 | Seguir enviando solicitudes seguidas (más de 5 en 10 minutos) | Aparece “Se enviaron demasiadas solicitudes desde esta conexión. Intente de nuevo en unos minutos.” (se libera solo a los 10 minutos) |
+| 17.16 | Desactivar **En el portal** en la plantilla y recargar el portal | Esa plantilla ya no aparece para los clientes |
 
 ## Opcional: PDF
 
