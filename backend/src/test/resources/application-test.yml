@@ -20,3 +20,7 @@ app:
     usuario: admin
     clave: clave-de-prueba-123
     nombre: Admin de Prueba
+  portal:
+    # Todas las pruebas llegan desde 127.0.0.1: sin esto se pisarían el límite entre sí (se prueba en LimitePortalTest)
+    solicitudes-por-10-minutos: 1000
+    consultas-por-10-minutos: 1000

@@ -176,10 +176,14 @@ public class ImportacionV1Service {
                 } else {
                     nuevos++;
                 }
-            } catch (ReglaNegocioException e) {
+            } catch (RuntimeException e) {
+                // ReglaNegocioException (dato inválido) u otro error de la base: se informa y se sigue con los demás
                 omitidos++;
-                avisos.agregar("Cliente %d (%s %s): %s"
-                        .formatted(fila, texto(n, "documentType"), texto(n, "number"), e.getMessage()));
+                String motivo = e instanceof ReglaNegocioException
+                        ? e.getMessage()
+                        : "no se pudo guardar (revise que los datos no sean demasiado largos).";
+                avisos.agregar(
+                        "Cliente %d (%s %s): %s".formatted(fila, texto(n, "documentType"), texto(n, "number"), motivo));
             }
         }
         return new int[] {nuevos, completados, omitidos};
@@ -190,8 +194,15 @@ public class ImportacionV1Service {
         String nombre = texto(n, "given");
         TipoDocumento tipoDocumento = empresa ? TipoDocumento.RUC : tipoDocumento(texto(n, "documentType"));
         Map<String, String> extras = extras(texto(n, "extrasJson"));
-        String telefono = buscarExtra(extras, "telefono", "celular", "phone", "whatsapp");
-        String correo = buscarExtra(extras, "correo", "email", "mail");
+        // Datos adicionales: si no caben en la v2 se dejan fuera en vez de perder al cliente
+        String telefono = siCabe(buscarExtra(extras, "telefono", "celular", "phone", "whatsapp"), 30);
+        String correo = siCabe(buscarExtra(extras, "correo", "email", "mail"), 120);
+        maximo(
+                nombre,
+                empresa ? 200 : 120,
+                empresa ? "La razón social es demasiado larga." : "Los nombres son demasiado largos.");
+        maximo(texto(n, "family"), 160, "Los apellidos son demasiado largos.");
+        maximo(texto(n, "address"), 250, "La dirección es demasiado larga (máximo 250 letras).");
         if (empresa) {
             String razonSocial = String.join(" ", nombre, texto(n, "family")).strip();
             return new DatosCliente(
@@ -218,6 +229,16 @@ public class ImportacionV1Service {
                 texto(n, "address"),
                 telefono,
                 correo);
+    }
+
+    private static String siCabe(String valor, int largo) {
+        return valor == null || valor.strip().length() > largo ? null : valor.strip();
+    }
+
+    private static void maximo(String valor, int largo, String mensaje) {
+        if (valor != null && valor.strip().length() > largo) {
+            throw new ReglaNegocioException(mensaje);
+        }
     }
 
     private static TipoDocumento tipoDocumento(String texto) {
@@ -323,8 +344,13 @@ public class ImportacionV1Service {
                         .orElseThrow(() -> new ReglaNegocioException("no trae el archivo Word."));
                 Plantilla plantilla = plantillas.crear(
                         nombre, "Importada de la versión anterior", categoria(n, grupos), nombre + ".docx", docx);
-                ajustarVariables(n, definiciones);
                 creadas++;
+                try {
+                    ajustarVariables(n, definiciones);
+                } catch (RuntimeException e) {
+                    avisos.agregar("Plantilla «%s»: se creó, pero revise sus variables (%s)."
+                            .formatted(nombre, e.getMessage()));
+                }
                 if (plantilla.getVariables().isEmpty()
                         && plantilla.getParticipantes().isEmpty()) {
                     avisos.agregar("Plantilla «%s»: no tiene marcas {{...}}; revísela.".formatted(nombre));

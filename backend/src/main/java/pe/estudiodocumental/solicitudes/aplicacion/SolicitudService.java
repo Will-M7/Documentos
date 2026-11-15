@@ -18,13 +18,16 @@ import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
 import pe.estudiodocumental.comun.eventos.DocumentoGenerado;
 import pe.estudiodocumental.comun.eventos.EventoAuditoria;
+import pe.estudiodocumental.comun.eventos.GenerandoDocumento;
 import pe.estudiodocumental.documentos.aplicacion.DocumentoService;
 import pe.estudiodocumental.documentos.aplicacion.DocumentoService.DatosParticipante;
 import pe.estudiodocumental.plantillas.aplicacion.PlantillaService;
+import pe.estudiodocumental.plantillas.dominio.ParticipantePlantilla;
 import pe.estudiodocumental.plantillas.dominio.Plantilla;
 import pe.estudiodocumental.solicitudes.dominio.EstadoSolicitud;
 import pe.estudiodocumental.solicitudes.dominio.Solicitud;
 import pe.estudiodocumental.solicitudes.infraestructura.SolicitudRepository;
+import pe.estudiodocumental.variables.dominio.Variable;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -81,14 +84,17 @@ public class SolicitudService {
     }
 
     @Transactional
-    public Solicitud crear(UUID plantillaId, Datos datos, Contacto contacto, boolean aceptaDatos, String ip) {
-        limite.registrar(ip);
+    public Solicitud crear(UUID plantillaId, Datos enviados, Contacto contacto, boolean aceptaDatos, String ip) {
+        // Se verifica antes, pero solo cuentan los envíos que se guardan: un error de tipeo no gasta el cupo
+        limite.verificarEnvio(ip);
         Plantilla plantilla = plantillaPublica(plantillaId);
         if (!aceptaDatos) {
             throw new ReglaNegocioException("Debe autorizar el tratamiento de sus datos personales para continuar.");
         }
+        Datos datos = soloDeLaPlantilla(plantilla, enviados);
         // Las mismas validaciones que al generar (campos obligatorios, formatos, DNI/RUC), sin guardar nada
         documentos.vistaPrevia(plantillaId, datos.variables(), participantes(datos));
+        limite.registrarEnvio(ip);
         Solicitud solicitud = solicitudes.save(new Solicitud(
                 codigoNuevo(),
                 plantillaId,
@@ -106,9 +112,29 @@ public class SolicitudService {
         return solicitud;
     }
 
+    /** Guarda solo las variables y participantes que la plantilla usa; lo demás que llegue se descarta. */
+    private Datos soloDeLaPlantilla(Plantilla plantilla, Datos enviados) {
+        Map<String, String> variables = new LinkedHashMap<>();
+        Map<String, String> llegaron = enviados.variables() == null ? Map.of() : enviados.variables();
+        for (Variable v : plantillas.variablesDe(plantilla)) {
+            if (llegaron.containsKey(v.getClave())) {
+                variables.put(v.getClave(), llegaron.get(v.getClave()));
+            }
+        }
+        Map<String, ClienteRequest> participantes = new LinkedHashMap<>();
+        Map<String, ClienteRequest> enviadosP = enviados.participantes() == null ? Map.of() : enviados.participantes();
+        for (ParticipantePlantilla p : plantilla.getParticipantes()) {
+            if (enviadosP.get(p.getClave()) != null) {
+                participantes.put(p.getClave(), enviadosP.get(p.getClave()));
+            }
+        }
+        return new Datos(variables, participantes);
+    }
+
     /** Lo que el cliente puede ver con su código: solo el estado, sin datos personales. */
     @Transactional(readOnly = true)
-    public Solicitud porCodigo(String codigo) {
+    public Solicitud porCodigo(String codigo, String ip) {
+        limite.registrarConsulta(ip);
         return solicitudes
                 .findByCodigo(codigo == null ? "" : codigo.strip().toUpperCase())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe una solicitud con ese código."));
@@ -139,11 +165,26 @@ public class SolicitudService {
 
     @Transactional
     public Solicitud rechazar(UUID id, String motivo, UUID usuarioId) {
-        Solicitud solicitud = obtener(id);
+        Solicitud solicitud = paraActualizar(id);
         solicitud.rechazar(motivo, usuarioId);
         eventos.publishEvent(EventoAuditoria.de(
                 "SOLICITUD_RECHAZADA", "solicitud", id, solicitud.getCodigo() + " · " + motivo.strip()));
         return solicitud;
+    }
+
+    /**
+     * Antes de generar el documento de una solicitud: la bloquea (otro operador que intente atenderla o rechazarla
+     * espera) y verifica que siga pendiente y sea de esa plantilla. Si no, se cancela la generación.
+     */
+    @EventListener
+    @Transactional
+    public void antesDeGenerar(GenerandoDocumento evento) {
+        Solicitud solicitud = paraActualizar(evento.solicitudId());
+        solicitud.verificarPendiente();
+        if (!solicitud.getPlantillaId().equals(evento.plantillaId())) {
+            throw new ReglaNegocioException("La solicitud %s es de otro documento («%s»)."
+                    .formatted(solicitud.getCodigo(), solicitud.getPlantillaNombre()));
+        }
     }
 
     /** Al generar el documento de una solicitud, queda atendida (en la misma transacción). */
@@ -151,8 +192,14 @@ public class SolicitudService {
     @Transactional
     public void alGenerarDocumento(DocumentoGenerado evento) {
         if (evento.solicitudId() != null) {
-            obtener(evento.solicitudId()).atender(evento.documentoId(), evento.usuarioId());
+            paraActualizar(evento.solicitudId()).atender(evento.documentoId(), evento.usuarioId());
         }
+    }
+
+    private Solicitud paraActualizar(UUID id) {
+        return solicitudes
+                .buscarParaActualizar(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("La solicitud no existe."));
     }
 
     private static List<DatosParticipante> participantes(Datos datos) {

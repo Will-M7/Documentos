@@ -35,6 +35,10 @@ set RESPALDOS_DIAS=30
 rem --- Red: las demas PCs entran por http://<nombre-de-esta-PC>:PUERTO ---
 set PUERTO=8080
 
+rem --- Portal de clientes: solicitudes por conexion cada 10 minutos ---
+rem (subirlo si los clientes piden desde una PC o tablet de recepcion compartida)
+set PORTAL_SOLICITUDES_POR_10_MIN=5
+
 rem --- Programas ---
 rem Carpeta "bin" de PostgreSQL (para respaldos):
 set PG_BIN=C:\Program Files\PostgreSQL\16\bin

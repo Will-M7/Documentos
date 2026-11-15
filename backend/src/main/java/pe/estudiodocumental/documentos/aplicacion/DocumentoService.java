@@ -26,6 +26,7 @@ import pe.estudiodocumental.comun.error.RecursoNoEncontradoException;
 import pe.estudiodocumental.comun.error.ReglaNegocioException;
 import pe.estudiodocumental.comun.eventos.DocumentoGenerado;
 import pe.estudiodocumental.comun.eventos.EventoAuditoria;
+import pe.estudiodocumental.comun.eventos.GenerandoDocumento;
 import pe.estudiodocumental.documentos.dominio.Documento;
 import pe.estudiodocumental.documentos.infraestructura.ConversorPdf;
 import pe.estudiodocumental.documentos.infraestructura.DocumentoRepository;
@@ -95,6 +96,10 @@ public class DocumentoService {
             List<DatosParticipante> participantes,
             UUID usuarioId,
             UUID solicitudId) {
+        if (solicitudId != null) {
+            // Bloquea y verifica la solicitud antes de escribir archivos (ver GenerandoDocumento)
+            eventos.publishEvent(new GenerandoDocumento(plantillaId, solicitudId));
+        }
         Plantilla plantilla = plantillas.obtener(plantillaId);
         if (!plantilla.isActivo()) {
             throw new ReglaNegocioException("La plantilla está desactivada.");

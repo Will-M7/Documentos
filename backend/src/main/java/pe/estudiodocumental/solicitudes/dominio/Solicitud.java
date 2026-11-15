@@ -88,13 +88,19 @@ public class Solicitud extends EntidadBase {
     }
 
     public void atender(UUID documentoId, UUID usuarioId) {
-        if (estado != EstadoSolicitud.PENDIENTE) {
-            return;
-        }
+        verificarPendiente();
         this.estado = EstadoSolicitud.ATENDIDA;
         this.documentoId = documentoId;
         this.atendidaPor = usuarioId;
         this.atendidaEn = Instant.now();
+    }
+
+    /** Una solicitud atendida o rechazada ya no se puede atender. */
+    public void verificarPendiente() {
+        if (estado != EstadoSolicitud.PENDIENTE) {
+            throw new ReglaNegocioException("La solicitud %s ya está %s: no se puede atender."
+                    .formatted(codigo, estado == EstadoSolicitud.ATENDIDA ? "atendida" : "rechazada"));
+        }
     }
 
     public void rechazar(String motivo, UUID usuarioId) {

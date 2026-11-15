@@ -139,6 +139,8 @@ Se hace una sola vez, al cambiar de la aplicación de escritorio a esta.
 
 Los clientes pueden pedir documentos en `http://NOMBRE-PC:8080/portal` (solo se ofrecen las plantillas marcadas **En el portal**). Así como está, el portal funciona **dentro de la red de la oficina** (por ejemplo, en una PC o tablet de recepción). Para abrirlo a internet hace falta un dominio con HTTPS y un servidor publicado; no exponga el puerto 8080 directamente a internet.
 
+Para evitar abusos, desde una misma conexión se aceptan 5 solicitudes cada 10 minutos (los envíos con errores no cuentan). Si los clientes piden desde una PC o tablet de recepción compartida, súbalo en `config.cmd` con `set PORTAL_SOLICITUDES_POR_10_MIN=30`.
+
 ## 11. Actualizar a una versión nueva
 
 1. Haga un respaldo (`respaldo.cmd`).

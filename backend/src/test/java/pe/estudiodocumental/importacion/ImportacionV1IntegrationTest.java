@@ -28,8 +28,13 @@ class ImportacionV1IntegrationTest extends PruebaIntegracion {
               {"kind":"Empresa","given":"Comercial Andina SAC","family":"","documentType":"RUC",
                "number":"20512345678","address":"Av. Grau 100","representatives":"","extrasJson":"{}"},
               {"kind":"Persona","given":"Sin","family":"Documento","documentType":"DNI","number":"123",
+               "address":"","representatives":"","extrasJson":"{}"},
+              {"kind":"Persona","given":"Pedro","family":"Huamán","documentType":"DNI","number":"47111222",
+               "address":"Calle 1","representatives":"",
+               "extrasJson":"{\\"Telefono\\":\\"999 888 777 / 01 234 5678 (casa de la mamá)\\"}"},
+              {"kind":"Persona","given":"%s","family":"Largo","documentType":"DNI","number":"47111333",
                "address":"","representatives":"","extrasJson":"{}"}
-            ]}""";
+            ]}""".formatted("N".repeat(130));
 
     private static String configuracion() {
         String docx = Base64.getEncoder().encodeToString(DocxDePrueba.crear("En {{lugarFirma}}, {{fecha_v1}}."));
@@ -74,12 +79,12 @@ class ImportacionV1IntegrationTest extends PruebaIntegracion {
                         .file(archivo(paquete))
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.clientesNuevos").value(2))
+                .andExpect(jsonPath("$.clientesNuevos").value(3))
                 .andExpect(jsonPath("$.clientesCompletados").value(0))
-                .andExpect(jsonPath("$.clientesOmitidos").value(1))
+                .andExpect(jsonPath("$.clientesOmitidos").value(2))
                 .andExpect(jsonPath("$.plantillasCreadas").value(1))
                 .andExpect(jsonPath("$.plantillasOmitidas").value(1))
-                .andExpect(jsonPath("$.avisos.length()").value(2));
+                .andExpect(jsonPath("$.avisos.length()").value(3));
 
         mvc.perform(get("/api/v1/clientes").param("q", "46543210").header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.contenido[0].nombres").value("Rosa Elena"))
@@ -87,6 +92,10 @@ class ImportacionV1IntegrationTest extends PruebaIntegracion {
                 .andExpect(jsonPath("$.contenido[0].apellidoMaterno").value("Huamán"))
                 .andExpect(jsonPath("$.contenido[0].telefono").value("987654321"))
                 .andExpect(jsonPath("$.contenido[0].correo").value("rosa@ejemplo.pe"));
+        // Teléfono que no cabe (más de 30 letras): se deja fuera, pero el cliente entra
+        mvc.perform(get("/api/v1/clientes").param("q", "47111222").header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(jsonPath("$.contenido[0].nombres").value("Pedro"))
+                .andExpect(jsonPath("$.contenido[0].telefono").doesNotExist());
         mvc.perform(get("/api/v1/clientes").param("q", "20512345678").header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(jsonPath("$.contenido[0].razonSocial").value("Comercial Andina SAC"));
 
@@ -105,7 +114,7 @@ class ImportacionV1IntegrationTest extends PruebaIntegracion {
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clientesNuevos").value(0))
-                .andExpect(jsonPath("$.clientesCompletados").value(2))
+                .andExpect(jsonPath("$.clientesCompletados").value(3))
                 .andExpect(jsonPath("$.plantillasCreadas").value(0))
                 .andExpect(jsonPath("$.plantillasOmitidas").value(2));
     }

@@ -34,6 +34,11 @@ app:
   archivos:
     # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
     directorio: ${ARCHIVOS_DIR:./datos/archivos}
+  portal:
+    # Solicitudes guardadas por conexión cada 10 minutos (los intentos con errores no cuentan). Súbalo si los
+    # clientes piden desde una misma PC o tablet de recepción.
+    solicitudes-por-10-minutos: ${PORTAL_SOLICITUDES_POR_10_MIN:5}
+    consultas-por-10-minutos: ${PORTAL_CONSULTAS_POR_10_MIN:60}
   respaldos:
     # Carpeta donde respaldo.cmd deja una subcarpeta AAAAMMDD_HHMM por respaldo. Vacío = no se muestran.
     directorio: ${RESPALDOS_DIR:}

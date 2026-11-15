@@ -135,6 +135,89 @@ class SolicitudIntegrationTest extends PruebaIntegracion {
     }
 
     @Test
+    void noSeGeneraParaUnaSolicitudRechazadaNiDeOtraPlantilla() throws Exception {
+        String id = idDe(enviar(solicitud("45200004", true)));
+        String generar = """
+                {"plantillaId":"%s","solicitudId":"%s","variables":{"motivo":"x","lugar":"Cusco"},
+                 "participantes":{"otorgante":{"tipo":"PERSONA","tipoDocumento":"DNI","numeroDocumento":"45200004",
+                 "nombres":"Julia","apellidoPaterno":"Ccahuana"}}}""";
+
+        // Otra plantilla: se rechaza antes de generar nada
+        String otra = JsonPath.read(
+                mvc.perform(multipart("/api/v1/plantillas")
+                                .file(new MockMultipartFile(
+                                        "archivo",
+                                        "otra.docx",
+                                        "application/octet-stream",
+                                        DocxDePrueba.crear("{{motivo}} {{lugar}}")))
+                                .param("nombre", "Otra " + UUID.randomUUID())
+                                .header("Authorization", bearer(tokenAdmin())))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                "$.id");
+        mvc.perform(post("/api/v1/documentos")
+                        .header("Authorization", bearer(tokenOperador()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(generar.formatted(otra, id)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.detail", Matchers.containsString("otro documento")));
+
+        mvc.perform(post("/api/v1/solicitudes/" + id + "/rechazar")
+                        .header("Authorization", bearer(tokenOperador()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"motivo\":\"Datos incompletos\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/documentos")
+                        .header("Authorization", bearer(tokenOperador()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(generar.formatted(plantillaId, id)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.detail", Matchers.containsString("rechazada")));
+        mvc.perform(get("/api/v1/solicitudes/" + id).header("Authorization", bearer(tokenOperador())))
+                .andExpect(jsonPath("$.resumen.estado").value("RECHAZADA"))
+                .andExpect(jsonPath("$.resumen.documentoId").doesNotExist());
+    }
+
+    @Test
+    void soloGuardaLosDatosQueLaPlantillaUsa() throws Exception {
+        String id = idDe(enviar("""
+                {"plantillaId":"%s","variables":{"motivo":"m","lugar":"Cusco","inventada":"basura"},
+                 "participantes":{"otorgante":{"tipo":"PERSONA","tipoDocumento":"DNI","numeroDocumento":"45200005",
+                   "nombres":"Julia","apellidoPaterno":"Ccahuana"},
+                   "intruso":{"tipo":"PERSONA","tipoDocumento":"DNI","numeroDocumento":"45200006",
+                   "nombres":"X","apellidoPaterno":"Y"}},
+                 "contactoNombre":"Julia","contactoTelefono":"984000111","aceptaDatos":true}""".formatted(plantillaId)));
+        mvc.perform(get("/api/v1/solicitudes/" + id).header("Authorization", bearer(tokenOperador())))
+                .andExpect(jsonPath("$.datos.variables.motivo").value("m"))
+                .andExpect(jsonPath("$.datos.variables.inventada").doesNotExist())
+                .andExpect(jsonPath("$.datos.participantes.intruso").doesNotExist());
+    }
+
+    private String enviar(String cuerpo) throws Exception {
+        return JsonPath.read(
+                mvc.perform(post("/api/v1/publico/solicitudes")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(cuerpo))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                "$.codigo");
+    }
+
+    private String idDe(String codigo) throws Exception {
+        String lista = mvc.perform(get("/api/v1/solicitudes")
+                        .param("tamano", "100")
+                        .header("Authorization", bearer(tokenOperador())))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.<java.util.List<String>>read(lista, "$.contenido[?(@.codigo == '" + codigo + "')].id")
+                .get(0);
+    }
+
+    @Test
     void laBandejaNoEsPublica() throws Exception {
         mvc.perform(get("/api/v1/solicitudes")).andExpect(status().isUnauthorized());
     }

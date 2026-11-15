@@ -60,7 +60,9 @@ class PortalController {
 
     record SolicitudRequest(
             @NotNull(message = "Elija el documento") UUID plantillaId,
-            Map<String, String> variables,
+            @Size(max = 100, message = "Demasiados datos") Map<String, @Size(max = 2000) String> variables,
+
+            @Size(max = 20, message = "Demasiados participantes")
             Map<String, @Valid ClienteRequest> participantes,
 
             @NotBlank(message = "Escriba su nombre") @Size(max = 150)
@@ -106,8 +108,8 @@ class PortalController {
 
     @Operation(summary = "Consultar el estado con el código")
     @GetMapping("/solicitudes/{codigo}")
-    EstadoPublico estado(@PathVariable String codigo) {
-        Solicitud s = solicitudes.porCodigo(codigo);
+    EstadoPublico estado(@PathVariable String codigo, HttpServletRequest pedido) {
+        Solicitud s = solicitudes.porCodigo(codigo, pedido.getRemoteAddr());
         String mensaje = switch (s.getEstado()) {
             case PENDIENTE -> "La oficina está revisando su solicitud.";
             case ATENDIDA -> "Su documento está listo. Puede acercarse a la oficina.";

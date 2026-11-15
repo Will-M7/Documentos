@@ -74,13 +74,13 @@ class RespaldoServiceTest {
             Files.writeString(
                     script,
                     "@echo off\r\nmkdir \"respaldos\\" + nombre + "\"\r\necho x> \"respaldos\\" + nombre
-                            + "\\base.dump\"\r\necho Respaldo listo\r\nexit /b 0\r\n");
+                            + "\\RESPALDO-OK.txt\"\r\necho Respaldo listo\r\nexit /b 0\r\n");
         } else {
             script = tmp.resolve("respaldo.sh");
             Files.writeString(
                     script,
                     "mkdir -p respaldos/" + nombre + "\necho x > respaldos/" + nombre
-                            + "/base.dump\necho Respaldo listo\n");
+                            + "/RESPALDO-OK.txt\necho Respaldo listo\n");
         }
         RespaldoService servicio = servicio(carpeta.toString(), script.toString());
         assertThat(servicio.estado().puedeRespaldarAhora()).isTrue();
@@ -98,6 +98,21 @@ class RespaldoServiceTest {
                                 tmp.toString(), tmp.resolve("no-existe.cmd").toString())
                         .respaldarAhora())
                 .isInstanceOf(ReglaNegocioException.class);
+    }
+
+    @Test
+    void unRespaldoQueFallaALaMitadNoCuentaComoCompleto() throws Exception {
+        // pg_dump crea base.dump aunque falle; el script deja la marca EN-CURSO
+        Path fallido = respaldo(tmp, LocalDateTime.now(), true);
+        Files.writeString(fallido.resolve("EN-CURSO.txt"), "x");
+        assertThat(RespaldoService.completo(fallido)).isFalse();
+
+        Files.move(fallido.resolve("EN-CURSO.txt"), fallido.resolve("RESPALDO-OK.txt"));
+        assertThat(RespaldoService.completo(fallido)).isTrue();
+
+        // Respaldos de antes de las marcas: base y archivos
+        Path antiguo = respaldo(tmp, LocalDateTime.now().minusDays(1), true);
+        assertThat(RespaldoService.completo(antiguo)).isTrue();
     }
 
     @Test

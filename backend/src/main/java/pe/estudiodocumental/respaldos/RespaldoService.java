@@ -121,6 +121,8 @@ public class RespaldoService {
                     .start();
             proceso.getOutputStream().close();
             if (!proceso.waitFor(TIEMPO_MAXIMO.toMinutes(), TimeUnit.MINUTES)) {
+                // En Windows matar cmd.exe no detiene pg_dump ni robocopy: primero los procesos hijos
+                proceso.descendants().forEach(ProcessHandle::destroyForcibly);
                 proceso.destroyForcibly();
                 return new Ejecucion(false, "El respaldo tardó más de 15 minutos y se detuvo.");
             }
@@ -167,8 +169,23 @@ public class RespaldoService {
         } catch (DateTimeParseException e) {
             fecha = modificado(carpeta);
         }
-        boolean completo = Files.isRegularFile(carpeta.resolve("base.dump"));
+        boolean completo = completo(carpeta);
         return new Respaldo(nombre, fecha, tamano(carpeta), completo);
+    }
+
+    /**
+     * respaldo.cmd escribe {@code EN-CURSO.txt} al empezar y lo cambia por {@code RESPALDO-OK.txt} al terminar bien;
+     * si falla a la mitad queda EN-CURSO. Los respaldos de antes de esas marcas se dan por buenos si tienen la base y
+     * la carpeta de archivos (cuando pg_dump falla, el script se detiene antes de copiar los archivos).
+     */
+    static boolean completo(Path carpeta) {
+        if (Files.isRegularFile(carpeta.resolve("RESPALDO-OK.txt"))) {
+            return true;
+        }
+        if (Files.exists(carpeta.resolve("EN-CURSO.txt"))) {
+            return false;
+        }
+        return Files.isRegularFile(carpeta.resolve("base.dump")) && Files.isDirectory(carpeta.resolve("archivos"));
     }
 
     private static Instant modificado(Path ruta) {
@@ -190,7 +207,8 @@ public class RespaldoService {
                         }
                     })
                     .sum();
-        } catch (IOException e) {
+        } catch (IOException | UncheckedIOException e) {
+            // Un archivo puede desaparecer mientras se recorre (el script borra respaldos viejos)
             return 0;
         }
     }
