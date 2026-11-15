@@ -1,6 +1,7 @@
 import Add from '@mui/icons-material/Add'
 import {
   Alert,
+  Box,
   Button,
   Card,
   CardContent,
@@ -14,6 +15,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Link as RouterLink } from 'react-router'
 import { useSesion } from '../../auth/sesionContext'
+import { Panel } from '../components/Panel'
 import { buscarDocumentos } from '../../documentos/api'
 import { AccionesDocumento } from '../../documentos/components/AccionesDocumento'
 
@@ -78,6 +80,9 @@ export function InicioPage() {
           </Card>
         </Grid>
       </Grid>
+      <Box sx={{ mt: 2 }}>
+        <Panel />
+      </Box>
     </>
   )
 }
