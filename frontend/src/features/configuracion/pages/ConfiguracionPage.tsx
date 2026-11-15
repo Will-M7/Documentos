@@ -28,6 +28,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { EncabezadoPagina } from '../../../components/EncabezadoPagina'
+import { ImportarV1 } from '../../importacion/ImportarV1'
 import {
   AYUDA_PROVEEDOR,
   crearCredencial,
@@ -55,7 +56,10 @@ export function ConfiguracionPage() {
 
   return (
     <>
-      <EncabezadoPagina titulo="Configuración" descripcion="Conexiones externas y estado del servidor." />
+      <EncabezadoPagina
+        titulo="Configuración"
+        descripcion="Conexiones externas, estado del servidor y datos de la versión anterior."
+      />
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -186,6 +190,8 @@ export function ConfiguracionPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ImportarV1 />
 
       <CredencialDialog
         key={dialogo.credencial?.id ?? (dialogo.abierto ? 'nueva' : 'cerrado')}
