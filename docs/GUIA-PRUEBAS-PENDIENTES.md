@@ -1,6 +1,6 @@
 # Guía de pruebas pendientes (ronda 2)
 
-Cada bloque se prueba por separado, en orden. Solo incluye lo que falta: lo aprobado en la ronda 1 (bloques 2, 3, 4 y 5, y los pasos 7.1, 7.5 y 7.6) no se vuelve a probar. Los números de paso son los mismos de la guía completa.
+Cada bloque se prueba por separado, en orden. Antes de empezar, actualice el código con `git pull` si lo trabaja desde otra PC. Solo incluye lo que falta: lo aprobado en la ronda 1 (bloques 2, 3, 4 y 5, y los pasos 7.1, 7.5 y 7.6) no se vuelve a probar. Los números de paso son los mismos de la guía completa.
 
 ## Antes de empezar
 
@@ -117,6 +117,35 @@ El usuario `operador1` ya existe. Para ingresar se usa el **usuario** `operador1
 | 17.14 | En el portal, consultar un código inventado (S-ZZZZZZ) | “No existe una solicitud con ese código.” |
 | 17.15 | Seguir enviando solicitudes seguidas (más de 5 en 10 minutos) | Aparece “Se enviaron demasiadas solicitudes desde esta conexión. Intente de nuevo en unos minutos.” (se libera solo a los 10 minutos) |
 | 17.16 | Desactivar **En el portal** en la plantilla y recargar el portal | Esa plantilla ya no aparece para los clientes |
+
+## Bloque 18: Traer datos de la versión anterior (v1)
+
+Necesita la aplicación de escritorio (rama `v1`) con algunos clientes y plantillas.
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 18.1 | En la v1: **Configuración → Exportar Clientes** y **Exportar Plantillas** (alcance Todas). Guardar los ZIP | Se crean los archivos ZIP |
+| 18.2 | En la web como **admin**: **Configuración** → tarjeta **Traer datos de la versión anterior** | El botón **Importar** está desactivado hasta elegir un archivo |
+| 18.3 | **Elegir ZIP** (el de clientes) → **Importar** | Resumen “Clientes: X nuevos, Y ya existían…”. Los que tengan datos malos aparecen listados con el motivo |
+| 18.4 | Ir a **Clientes** y buscar a uno importado | Nombres y apellidos bien separados (por ejemplo “De la Cruz” como apellido paterno), dirección y, si tenía, teléfono/correo |
+| 18.5 | Importar el ZIP de plantillas | “Plantillas: X creadas”. En **Plantillas** aparecen con su categoría (el grupo de la v1) y la descripción “Importada de la versión anterior” |
+| 18.6 | Abrir una plantilla importada y luego **Variables** | Las variables tienen la etiqueta y el tipo de la v1 (por ejemplo, Fecha) |
+| 18.7 | Generar un documento con una plantilla importada | Se genera con los datos escritos |
+| 18.8 | Importar **otra vez** los mismos ZIP | No se duplica nada: clientes “ya existían”, plantillas “Ya existe una plantilla llamada…” |
+| 18.9 | Importar un archivo que no sea de la v1 (por ejemplo un Word o un ZIP cualquiera) | Mensaje claro: no es una exportación de la versión anterior |
+| 18.10 | Ingresar como **operador** | El menú no muestra Configuración (es solo del administrador) |
+
+## Bloque 19: Respaldos desde la web
+
+En desarrollo no hay carpeta de respaldos configurada; lo completo se prueba en la PC servidor instalada con `INSTALACION.md`.
+
+| # | Paso | Resultado esperado |
+|---|---|---|
+| 19.1 | En desarrollo: **Configuración** → tarjeta **Respaldos** | Aviso “En este equipo no hay carpeta de respaldos configurada”; no aparece Respaldar ahora |
+| 19.2 | En la PC servidor (iniciada con `iniciar.cmd`): **Configuración → Respaldos** | Lista de respaldos con fecha, carpeta, tamaño y “Completo” |
+| 19.3 | **Respaldar ahora** | Tarda unos segundos y muestra “Respaldo terminado.” con la salida del script; aparece un respaldo nuevo arriba |
+| 19.4 | Menú **Auditoría** | Aparece la acción **RESPALDO_MANUAL** |
+| 19.5 | (Opcional) Renombrar temporalmente la carpeta `respaldos` y recargar **Inicio** | Aviso amarillo “Todavía no se ha hecho ningún respaldo…” con el botón **Ver respaldos** |
 
 ## Opcional: PDF
 
