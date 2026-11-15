@@ -1,0 +1,69 @@
+# Configuración base. Los valores sensibles vienen SIEMPRE de variables de entorno.
+# Para desarrollo use el perfil "local" (application-local.yml).
+spring:
+  application:
+    name: estudio-documental-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/estudio_documental}
+    username: ${DB_USUARIO}
+    password: ${DB_CLAVE}
+  jpa:
+    # El esquema lo crea Flyway; Hibernate solo valida que las entidades coincidan
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 105MB
+
+server:
+  port: ${PUERTO:8080}
+  error:
+    include-stacktrace: never
+
+app:
+  seguridad:
+    jwt-secreto: ${JWT_SECRETO}
+    # Cifra los tokens de Factiliza/APIsPERU guardados en la base. Si cambia, hay que volver a registrarlos.
+    clave-maestra: ${APP_CLAVE_MAESTRA}
+    duracion-token: ${DURACION_TOKEN:15m}
+    duracion-sesion: ${DURACION_SESION:12h}
+  archivos:
+    # Carpeta donde se guardan los DOCX y PDF. Incluirla en los respaldos.
+    directorio: ${ARCHIVOS_DIR:./datos/archivos}
+  portal:
+    # Solicitudes guardadas por conexión cada 10 minutos (los intentos con errores no cuentan). Súbalo si los
+    # clientes piden desde una misma PC o tablet de recepción.
+    solicitudes-por-10-minutos: ${PORTAL_SOLICITUDES_POR_10_MIN:5}
+    consultas-por-10-minutos: ${PORTAL_CONSULTAS_POR_10_MIN:60}
+  respaldos:
+    # Carpeta donde respaldo.cmd deja una subcarpeta AAAAMMDD_HHMM por respaldo. Vacío = no se muestran.
+    directorio: ${RESPALDOS_DIR:}
+    # Script que hace el respaldo; si se indica, el administrador puede respaldar desde la web.
+    script: ${RESPALDO_SCRIPT:}
+  web:
+    # Carpeta "dist" del frontend compilado. Si se indica, el backend sirve también la web en el mismo puerto
+    # (instalación sin Docker). Vacío en desarrollo: la web la sirve Vite.
+    directorio: ${WEB_DIR:}
+  consultas:
+    # Consultas pagadas (Factiliza/APIsPERU) que cada usuario puede hacer por minuto
+    limite-por-minuto: ${CONSULTAS_POR_MINUTO:10}
+  admin-inicial:
+    usuario: ${ADMIN_USUARIO:}
+    clave: ${ADMIN_CLAVE:}
+    nombre: ${ADMIN_NOMBRE:Administrador}
+
+springdoc:
+  api-docs:
+    path: /api/docs/openapi.json
+  swagger-ui:
+    path: /api/docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

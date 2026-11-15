@@ -1,0 +1,94 @@
+import { api, descargar, obtenerArchivo } from '../../api/cliente'
+import type { Pagina } from '../../api/tipos'
+import type { Cliente, DatosCliente } from '../clientes/api'
+
+export interface ParticipanteDocumento {
+  participante: string
+  etiqueta: string
+  clienteId: string
+  nombre: string
+  documentoIdentidad: string
+}
+
+export interface DocumentoResumen {
+  id: string
+  numero: number
+  titulo: string
+  plantillaId: string
+  plantillaNombre: string
+  usuarioNombre: string
+  creadoEn: string
+  tienePdf: boolean
+  participantes: ParticipanteDocumento[]
+}
+
+export interface DocumentoDetalle {
+  resumen: DocumentoResumen
+  variables: Record<string, string>
+  marcas: Record<string, string>
+  avisoPdf: string | null
+}
+
+export interface PedidoDocumento {
+  plantillaId: string
+  titulo: string
+  variables: Record<string, string>
+  participantes: Record<string, DatosCliente>
+  /** Solicitud del portal que se atiende con este documento. */
+  solicitudId?: string | null
+}
+
+export function generarDocumento(pedido: PedidoDocumento) {
+  return api<DocumentoDetalle>('/documentos', { method: 'POST', body: JSON.stringify(pedido) })
+}
+
+/** El Word tal como quedaría, sin guardar nada. */
+export async function vistaPrevia(pedido: PedidoDocumento): Promise<Blob> {
+  const { contenido } = await obtenerArchivo('/documentos/vista-previa', {
+    method: 'POST',
+    body: JSON.stringify(pedido),
+  })
+  return contenido
+}
+
+export function buscarDocumentos(filtro: {
+  q: string
+  desde: string
+  hasta: string
+  pagina: number
+  tamano: number
+  /** Solo los documentos de este cliente. */
+  clienteId?: string
+}) {
+  const params = new URLSearchParams({
+    q: filtro.q,
+    pagina: String(filtro.pagina),
+    tamano: String(filtro.tamano),
+  })
+  if (filtro.desde) params.set('desde', filtro.desde)
+  if (filtro.hasta) params.set('hasta', filtro.hasta)
+  if (filtro.clienteId) params.set('clienteId', filtro.clienteId)
+  return api<Pagina<DocumentoResumen>>(`/documentos?${params}`)
+}
+
+export function obtenerDocumento(id: string) {
+  return api<DocumentoDetalle>(`/documentos/${id}`)
+}
+
+export function descargarDocx(d: DocumentoResumen) {
+  return descargar(`/documentos/${d.id}/docx`, `${d.titulo}.docx`)
+}
+
+export function descargarPdf(d: DocumentoResumen) {
+  return descargar(`/documentos/${d.id}/pdf`, `${d.titulo}.pdf`)
+}
+
+/** Abre el PDF en una pestaña nueva para verlo o imprimirlo. */
+export async function verPdf(d: DocumentoResumen) {
+  const { contenido } = await obtenerArchivo(`/documentos/${d.id}/pdf?verEnLinea=true`)
+  window.open(URL.createObjectURL(contenido), '_blank')
+}
+
+export function obtenerCliente(id: string) {
+  return api<Cliente>(`/clientes/${id}`)
+}

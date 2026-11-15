@@ -1,0 +1,14 @@
+# Perfil de DESARROLLO. Valores de prueba: nunca usarlos en una instalación real.
+# Se activa con: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+spring:
+  datasource:
+    username: ${DB_USUARIO:estudio}
+    password: ${DB_CLAVE:estudio_local}
+
+app:
+  seguridad:
+    jwt-secreto: ${JWT_SECRETO:clave-solo-para-desarrollo-local-no-usar-en-produccion}
+    clave-maestra: ${APP_CLAVE_MAESTRA:clave-maestra-solo-para-desarrollo-local}
+  admin-inicial:
+    usuario: ${ADMIN_USUARIO:admin}
+    clave: ${ADMIN_CLAVE:admin-local-123}

@@ -1,0 +1,368 @@
+import ArrowBack from '@mui/icons-material/ArrowBack'
+import VisibilityOutlined from '@mui/icons-material/VisibilityOutlined'
+import CheckCircle from '@mui/icons-material/CheckCircle'
+import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined'
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardActionArea,
+  CardContent,
+  CircularProgress,
+  Grid,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router'
+import { EncabezadoPagina } from '../../../components/EncabezadoPagina'
+import type { DatosCliente } from '../../clientes/api'
+import {
+  listarPlantillas,
+  obtenerPlantilla,
+  type PlantillaDetalle,
+  type PlantillaResumen,
+} from '../../plantillas/api'
+import {
+  generarDocumento,
+  obtenerCliente,
+  obtenerDocumento,
+  vistaPrevia,
+  type DocumentoDetalle,
+} from '../api'
+import { AccionesDocumento } from '../components/AccionesDocumento'
+import { CampoVariable } from '../components/CampoVariable'
+import { ParticipanteCampos } from '../components/ParticipanteCampos'
+import { VistaPreviaDialog } from '../components/VistaPreviaDialog'
+import { PARTICIPANTE_VACIO, sinNulos } from '../participante'
+import { hoy } from '../../../lib/fechas'
+import { obtenerSolicitud, type SolicitudResumen } from '../../solicitudes/api'
+
+/**
+ * Flujo principal: elegir plantilla → completar datos → generar.
+ * `?plantilla=<id>` abre directo el formulario; `?desde=<documento>` lo rellena con un documento anterior;
+ * `?solicitud=<id>` lo rellena con lo que envió el cliente desde el portal y, al generar, la marca atendida.
+ */
+export function NuevoDocumentoPage() {
+  const [parametros, setParametros] = useSearchParams()
+  const plantillaId = parametros.get('plantilla')
+  const desde = parametros.get('desde')
+  const solicitud = parametros.get('solicitud')
+
+  if (!plantillaId && !desde && !solicitud) {
+    return <ElegirPlantilla onElegir={(id) => setParametros({ plantilla: id })} />
+  }
+  return (
+    <CargarFormulario
+      key={`${plantillaId}-${desde}-${solicitud}`}
+      plantillaId={plantillaId}
+      desde={desde}
+      solicitudId={solicitud}
+    />
+  )
+}
+
+function ElegirPlantilla({ onElegir }: { onElegir: (id: string) => void }) {
+  const [filtro, setFiltro] = useState('')
+  const consulta = useQuery({ queryKey: ['plantillas', true], queryFn: () => listarPlantillas(true) })
+  const visibles = (consulta.data ?? []).filter((p) =>
+    `${p.nombre} ${p.categoria ?? ''}`.toLowerCase().includes(filtro.toLowerCase()),
+  )
+  const porCategoria = agrupar(visibles)
+
+  return (
+    <>
+      <EncabezadoPagina titulo="Nuevo documento" descripcion="Elija la plantilla del documento a preparar." />
+      <TextField
+        fullWidth
+        placeholder="Buscar plantilla"
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value)}
+        sx={{ mb: 3, bgcolor: 'background.paper' }}
+      />
+      {consulta.isPending && <CircularProgress />}
+      {consulta.error && <Alert severity="error">{consulta.error.message}</Alert>}
+      {consulta.data?.length === 0 && (
+        <Alert severity="info">
+          Todavía no hay plantillas activas. Un administrador debe subirlas en Administración → Plantillas.
+        </Alert>
+      )}
+      {Object.entries(porCategoria).map(([categoria, plantillas]) => (
+        <Box key={categoria} sx={{ mb: 3 }}>
+          <Typography variant="overline" color="text.secondary">
+            {categoria}
+          </Typography>
+          <Grid container spacing={2}>
+            {plantillas.map((p) => (
+              <Grid key={p.id} size={{ xs: 12, sm: 6, lg: 4 }}>
+                <Card sx={{ height: '100%' }}>
+                  <CardActionArea sx={{ height: '100%' }} onClick={() => onElegir(p.id)}>
+                    <CardContent>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                        <DescriptionOutlined color="primary" />
+                        <Typography variant="subtitle1">{p.nombre}</Typography>
+                      </Stack>
+                      {p.descripcion && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          {p.descripcion}
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      ))}
+    </>
+  )
+}
+
+interface ValoresIniciales {
+  plantilla: PlantillaDetalle
+  variables: Record<string, string>
+  participantes: Record<string, DatosCliente>
+  /** Solicitud del portal que se está atendiendo. */
+  solicitud: SolicitudResumen | null
+}
+
+/** Carga la plantilla (y, si se pide, el documento anterior y sus clientes) antes de mostrar el formulario. */
+function CargarFormulario({
+  plantillaId,
+  desde,
+  solicitudId,
+}: {
+  plantillaId: string | null
+  desde: string | null
+  solicitudId: string | null
+}) {
+  const consulta = useQuery({
+    queryKey: ['formulario-documento', plantillaId, desde, solicitudId],
+    queryFn: async (): Promise<ValoresIniciales> => {
+      const anterior = desde ? await obtenerDocumento(desde) : null
+      const solicitud = solicitudId ? await obtenerSolicitud(solicitudId) : null
+      const plantilla = await obtenerPlantilla(
+        plantillaId ?? solicitud?.resumen.plantillaId ?? anterior!.resumen.plantillaId,
+      )
+      const participantes: Record<string, DatosCliente> = {}
+      for (const p of plantilla.participantes) {
+        const previo = anterior?.resumen.participantes.find((x) => x.participante === p.clave)
+        const cliente = previo ? await obtenerCliente(previo.clienteId).catch(() => null) : null
+        const enviado = solicitud?.datos.participantes?.[p.clave]
+        participantes[p.clave] = enviado
+          ? ({ ...PARTICIPANTE_VACIO, ...sinNulos(enviado) } as DatosCliente)
+          : cliente
+            ? ({ ...PARTICIPANTE_VACIO, ...sinNulos(cliente) } as DatosCliente)
+            : {
+                ...PARTICIPANTE_VACIO,
+                tipo: p.tipoCliente === 'EMPRESA' ? 'EMPRESA' : 'PERSONA',
+                tipoDocumento: p.tipoCliente === 'EMPRESA' ? 'RUC' : 'DNI',
+              }
+      }
+      const variables: Record<string, string> = {}
+      for (const v of plantilla.variables) {
+        variables[v.clave] =
+          solicitud?.datos.variables?.[v.clave] ??
+          anterior?.variables[v.clave] ??
+          v.valorDefecto ??
+          (v.tipo === 'FECHA' ? hoy() : '')
+      }
+      return { plantilla, variables, participantes, solicitud: solicitud?.resumen ?? null }
+    },
+    staleTime: Infinity,
+  })
+
+  if (consulta.isPending) return <CircularProgress />
+  if (consulta.error) return <Alert severity="error">{consulta.error.message}</Alert>
+  return <Formulario iniciales={consulta.data} />
+}
+
+function Formulario({ iniciales }: { iniciales: ValoresIniciales }) {
+  const navegar = useNavigate()
+  const { plantilla } = iniciales
+  const [titulo, setTitulo] = useState('')
+  const [variables, setVariables] = useState(iniciales.variables)
+  const [participantes, setParticipantes] = useState(iniciales.participantes)
+  const [resultado, setResultado] = useState<DocumentoDetalle | null>(null)
+
+  // Una solicitud ya atendida o rechazada no se vuelve a atender (el backend también lo impide)
+  const solicitudCerrada = !!iniciales.solicitud && iniciales.solicitud.estado !== 'PENDIENTE'
+  const pedido = {
+    plantillaId: plantilla.id,
+    titulo,
+    variables,
+    participantes,
+    solicitudId: solicitudCerrada ? null : (iniciales.solicitud?.id ?? null),
+  }
+  const queryClient = useQueryClient()
+  const generar = useMutation({
+    mutationFn: () => generarDocumento(pedido),
+    onSuccess: (documento) => {
+      previa.reset()
+      if (iniciales.solicitud) {
+        queryClient.invalidateQueries({ queryKey: ['solicitudes'] })
+        queryClient.invalidateQueries({ queryKey: ['solicitudes-pendientes'] })
+        // Si se vuelve a abrir esta solicitud, que se vea ya atendida
+        queryClient.removeQueries({ queryKey: ['formulario-documento'] })
+      }
+      setResultado(documento)
+      window.scrollTo({ top: 0 })
+    },
+  })
+  const previa = useMutation({ mutationFn: () => vistaPrevia(pedido) })
+
+  if (resultado) {
+    return (
+      <Resultado
+        documento={resultado}
+        onOtro={() => navegar(`/documentos/nuevo?plantilla=${plantilla.id}`, { replace: true })}
+      />
+    )
+  }
+
+  return (
+    <>
+      <Button component={RouterLink} to="/documentos/nuevo" startIcon={<ArrowBack />} sx={{ mb: 2 }}>
+        Elegir otra plantilla
+      </Button>
+      {solicitudCerrada && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          La solicitud <strong>{iniciales.solicitud!.codigo}</strong> ya está{' '}
+          {iniciales.solicitud!.estado === 'ATENDIDA' ? 'atendida' : 'rechazada'}. Puede usar sus datos, pero
+          este documento no quedará vinculado a ella.
+        </Alert>
+      )}
+      {iniciales.solicitud && !solicitudCerrada && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Atendiendo la solicitud <strong>{iniciales.solicitud.codigo}</strong> de{' '}
+          {iniciales.solicitud.contactoNombre}
+          {[iniciales.solicitud.contactoTelefono, iniciales.solicitud.contactoCorreo].filter(Boolean).length >
+            0 &&
+            ` (${[iniciales.solicitud.contactoTelefono, iniciales.solicitud.contactoCorreo].filter(Boolean).join(' · ')})`}
+          . Revise los datos que envió el cliente; al generar, la solicitud queda atendida.
+        </Alert>
+      )}
+      <EncabezadoPagina
+        titulo={plantilla.nombre}
+        descripcion="Busque a cada persona por su documento: si ya está registrada, sus datos se completan solos."
+      />
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          generar.mutate()
+        }}
+      >
+        <Stack spacing={2}>
+          {plantilla.participantes.map((p) => (
+            <ParticipanteCampos
+              key={p.clave}
+              participante={p}
+              valor={participantes[p.clave]}
+              onCambiar={(datos) => setParticipantes((actual) => ({ ...actual, [p.clave]: datos }))}
+            />
+          ))}
+
+          {plantilla.variables.length > 0 && (
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Datos del documento
+                </Typography>
+                <Grid container spacing={2}>
+                  {plantilla.variables.map((v) => (
+                    <Grid key={v.clave} size={{ xs: 12, sm: v.tipo === 'TEXTO_LARGO' ? 12 : 6 }}>
+                      <CampoVariable
+                        variable={v}
+                        valor={variables[v.clave] ?? ''}
+                        onCambiar={(valor) => setVariables((actual) => ({ ...actual, [v.clave]: valor }))}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
+          )}
+
+          <TextField
+            label="Título para el historial (opcional)"
+            placeholder={`${plantilla.nombre} - nombre del primer participante`}
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            sx={{ bgcolor: 'background.paper' }}
+          />
+
+          {generar.error && <Alert severity="error">{generar.error.message}</Alert>}
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<VisibilityOutlined />}
+              loading={previa.isPending}
+              onClick={() => previa.mutate()}
+            >
+              Vista previa
+            </Button>
+            <Button type="submit" variant="contained" size="large" loading={generar.isPending}>
+              Generar documento
+            </Button>
+          </Box>
+        </Stack>
+      </form>
+      <VistaPreviaDialog
+        docx={previa.data ?? null}
+        cargando={previa.isPending}
+        error={previa.error?.message ?? null}
+        generando={generar.isPending}
+        onCerrar={() => previa.reset()}
+        onGenerar={() => generar.mutate()}
+      />
+    </>
+  )
+}
+
+function Resultado({ documento, onOtro }: { documento: DocumentoDetalle; onOtro: () => void }) {
+  const { resumen } = documento
+  return (
+    <Card>
+      <CardContent>
+        <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <CheckCircle color="success" fontSize="large" />
+            <Box>
+              <Typography variant="h5">Documento n.º {resumen.numero} generado</Typography>
+              <Typography color="text.secondary">{resumen.titulo}</Typography>
+            </Box>
+          </Stack>
+          <AccionesDocumento documento={resumen} />
+          {documento.avisoPdf && <Alert severity="warning">{documento.avisoPdf}</Alert>}
+          <Typography variant="body2" color="text.secondary">
+            Los datos de {resumen.participantes.map((p) => p.nombre).join(', ') || 'los participantes'}{' '}
+            quedaron guardados en Clientes.
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={onOtro}>
+              Otro documento con esta plantilla
+            </Button>
+            <Button component={RouterLink} to="/historial">
+              Ir al historial
+            </Button>
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  )
+}
+
+function agrupar(plantillas: PlantillaResumen[]) {
+  return plantillas.reduce<Record<string, PlantillaResumen[]>>((grupos, p) => {
+    const clave = p.categoria ?? 'Sin categoría'
+    ;(grupos[clave] ??= []).push(p)
+    return grupos
+  }, {})
+}
